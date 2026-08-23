@@ -3,6 +3,7 @@
 namespace DevDay\Services;
 
 use DevDay\Config\App;
+use DevDay\Helpers\Env;
 use DevDay\Models\User;
 use Exception;
 
@@ -28,13 +29,15 @@ class AuthService
             throw new Exception('Invalid email or password.');
         }
 
-        // Session fixation protection: regenerate session ID if headers not sent
         if (!headers_sent()) {
-            session_regenerate_id(true);
+            @session_regenerate_id(true);
         }
 
         unset($user['password_hash']);
         $_SESSION['user'] = $user;
+
+        // Set stateless signed authentication cookie for serverless environments
+        self::setAuthCookie($user);
 
         return $user;
     }
@@ -56,9 +59,13 @@ class AuthService
         }
 
         if (!headers_sent()) {
-            session_regenerate_id(true);
+            @session_regenerate_id(true);
         }
+        unset($user['password_hash']);
         $_SESSION['user'] = $user;
+
+        // Set stateless signed authentication cookie for serverless environments
+        self::setAuthCookie($user);
 
         return $user;
     }
@@ -67,6 +74,10 @@ class AuthService
     {
         App::init();
         $_SESSION = [];
+
+        if (!headers_sent()) {
+            setcookie('devday_auth', '', time() - 3600, '/', '', false, true);
+        }
 
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
@@ -81,6 +92,58 @@ class AuthService
             );
         }
 
-        session_destroy();
+        @session_destroy();
+    }
+
+    public static function createAuthToken(array $user): string
+    {
+        $secret = (string)Env::get('APP_SECRET', 'devday_default_secret_key_88921');
+        $payload = json_encode([
+            'id'    => (int)$user['id'],
+            'email' => $user['email'],
+            'exp'   => time() + (86400 * 30), // 30 days
+        ]);
+        $encodedPayload = base64_encode($payload);
+        $signature = hash_hmac('sha256', $encodedPayload, $secret);
+        return $encodedPayload . '.' . $signature;
+    }
+
+    public static function setAuthCookie(array $user): void
+    {
+        if (headers_sent()) return;
+        $token = self::createAuthToken($user);
+        $isSecure = isset($_SERVER['HTTPS']) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        setcookie(
+            'devday_auth',
+            $token,
+            [
+                'expires'  => time() + (86400 * 30),
+                'path'     => '/',
+                'secure'   => $isSecure,
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]
+        );
+    }
+
+    public static function verifyAuthToken(?string $token): ?array
+    {
+        if (empty($token) || !str_contains($token, '.')) {
+            return null;
+        }
+        [$encodedPayload, $signature] = explode('.', $token, 2);
+        $secret = (string)Env::get('APP_SECRET', 'devday_default_secret_key_88921');
+        $expectedSig = hash_hmac('sha256', $encodedPayload, $secret);
+        if (!hash_equals($expectedSig, $signature)) {
+            return null;
+        }
+        $payload = json_decode(base64_decode($encodedPayload), true);
+        if (!$payload || !isset($payload['id'], $payload['exp'])) {
+            return null;
+        }
+        if (time() > $payload['exp']) {
+            return null; // Token expired
+        }
+        return $payload;
     }
 }
