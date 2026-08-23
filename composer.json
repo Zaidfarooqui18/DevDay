@@ -8,7 +8,19 @@
     },
     "autoload": {
         "psr-4": {
+            "DevDay\\Config\\": "config/",
+            "DevDay\\Helpers\\": "helpers/",
+            "DevDay\\Middleware\\": "middleware/",
+            "DevDay\\Models\\": "models/",
+            "DevDay\\Services\\": "services/",
             "DevDay\\": ""
-        }
+        },
+        "classmap": [
+            "config/",
+            "helpers/",
+            "middleware/",
+            "models/",
+            "services/"
+        ]
     }
 }
