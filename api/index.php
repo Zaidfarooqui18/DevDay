@@ -29,5 +29,29 @@ if (file_exists($pagePath)) {
     exit;
 }
 
+// Check direct static or public assets fallback
+$directPath = dirname(__DIR__) . '/public/' . $page;
+if (file_exists($directPath) && !is_dir($directPath)) {
+    $ext = strtolower(pathinfo($directPath, PATHINFO_EXTENSION));
+    $mimes = [
+        'css'   => 'text/css',
+        'js'    => 'application/javascript',
+        'json'  => 'application/json',
+        'svg'   => 'image/svg+xml',
+        'png'   => 'image/png',
+        'jpg'   => 'image/jpeg',
+        'jpeg'  => 'image/jpeg',
+        'gif'   => 'image/gif',
+        'ico'   => 'image/x-icon',
+        'woff'  => 'font/woff',
+        'woff2' => 'font/woff2',
+    ];
+    if (isset($mimes[$ext])) {
+        header("Content-Type: {$mimes[$ext]}");
+    }
+    readfile($directPath);
+    exit;
+}
+
 http_response_code(404);
 echo "404 Not Found";
