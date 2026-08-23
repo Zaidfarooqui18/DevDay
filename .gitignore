@@ -1,0 +1,8 @@
+.env
+vendor/
+database/*.sqlite
+*.log
+composer.phar
+.vercel
+.DS_Store
+Thumbs.db
