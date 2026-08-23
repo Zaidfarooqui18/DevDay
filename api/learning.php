@@ -1,6 +1,6 @@
 <?php
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
+require_once dirname(__DIR__) . '/bootstrap.php';
 
 use DevDay\Config\App;
 use DevDay\Helpers\CSRF;

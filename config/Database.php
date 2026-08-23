@@ -40,20 +40,20 @@ class Database
                 self::$instance = new PDO($dsn, $user, $pass, $options);
             } else {
                 // SQLite default
-                $isServerless = isset($_ENV['VERCEL']) || getenv('VERCEL') || isset($_SERVER['VERCEL']);
-                $sqlitePath = Env::get('DB_SQLITE_PATH');
+                $isServerless = isset($_ENV['VERCEL']) || getenv('VERCEL') || isset($_SERVER['VERCEL']) || (defined('PHP_OS_FAMILY') && PHP_OS_FAMILY !== 'Windows' && !is_writable(dirname(__DIR__) . '/database'));
                 
-                if (!$sqlitePath) {
-                    $sqlitePath = $isServerless ? '/tmp/devday.sqlite' : 'database/devday.sqlite';
-                }
-
-                if (!str_starts_with($sqlitePath, '/') && !preg_match('/^[a-zA-Z]:\\\\/', $sqlitePath)) {
-                    $sqlitePath = dirname(__DIR__) . '/' . ltrim($sqlitePath, '/\\');
+                if ($isServerless) {
+                    $sqlitePath = '/tmp/devday.sqlite';
+                } else {
+                    $sqlitePath = Env::get('DB_SQLITE_PATH', 'database/devday.sqlite');
+                    if (!str_starts_with($sqlitePath, '/') && !preg_match('/^[a-zA-Z]:\\\\/', $sqlitePath)) {
+                        $sqlitePath = dirname(__DIR__) . '/' . ltrim($sqlitePath, '/\\');
+                    }
                 }
 
                 $dir = dirname($sqlitePath);
                 if (!is_dir($dir)) {
-                    mkdir($dir, 0777, true);
+                    @mkdir($dir, 0777, true);
                 }
 
                 $dsn = "sqlite:{$sqlitePath}";
@@ -65,7 +65,11 @@ class Database
 
                 self::$instance = new PDO($dsn, null, null, $options);
                 self::$instance->exec('PRAGMA foreign_keys = ON;');
-                self::$instance->exec('PRAGMA journal_mode = WAL;');
+                if ($isServerless) {
+                    self::$instance->exec('PRAGMA journal_mode = MEMORY;');
+                } else {
+                    self::$instance->exec('PRAGMA journal_mode = WAL;');
+                }
 
                 self::ensureSqliteSchema(self::$instance);
             }
@@ -74,10 +78,10 @@ class Database
             if ($driver === 'mysql' && Env::get('APP_ENV') === 'development') {
                 error_log("MySQL connection failed ({$e->getMessage()}). Falling back to SQLite for local development.");
                 self::$driver = 'sqlite';
-                $sqlitePath = dirname(__DIR__) . '/database/devday.sqlite';
+                $sqlitePath = '/tmp/devday.sqlite';
                 $dir = dirname($sqlitePath);
                 if (!is_dir($dir)) {
-                    mkdir($dir, 0777, true);
+                    @mkdir($dir, 0777, true);
                 }
                 self::$instance = new PDO("sqlite:{$sqlitePath}", null, null, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -85,7 +89,7 @@ class Database
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ]);
                 self::$instance->exec('PRAGMA foreign_keys = ON;');
-                self::$instance->exec('PRAGMA journal_mode = WAL;');
+                self::$instance->exec('PRAGMA journal_mode = MEMORY;');
                 self::ensureSqliteSchema(self::$instance);
             } else {
                 throw new PDOException("Database connection error: " . $e->getMessage(), (int)$e->getCode());

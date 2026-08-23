@@ -22,7 +22,15 @@
 
             try {
                 const response = await fetch(url, options);
-                const data = await response.json();
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error(`[DevDay Raw Server Response] ${url}:`, text);
+                    const cleanText = text.replace(/<[^>]*>?/gm, ' ').trim();
+                    throw new Error(cleanText && cleanText.length < 150 ? cleanText : `Server returned non-JSON error (${response.status}).`);
+                }
 
                 if (!response.ok || !data.success) {
                     const message = data.message || `Request failed with status ${response.status}`;

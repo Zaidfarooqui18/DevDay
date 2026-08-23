@@ -26,7 +26,7 @@ spl_autoload_register(function ($class) {
 });
 
 if (file_exists(dirname(__DIR__) . '/vendor/autoload.php')) {
-    require_once dirname(__DIR__) . '/vendor/autoload.php';
+    require_once dirname(__DIR__) . '/bootstrap.php';
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
