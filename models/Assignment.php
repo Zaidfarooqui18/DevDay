@@ -94,7 +94,8 @@ class Assignment
                     WHEN 'Low' THEN 4
                     ELSE 5
                 END,
-                a.deadline ASC NULLS LAST,
+                CASE WHEN a.deadline IS NULL THEN 1 ELSE 0 END ASC,
+                a.deadline ASC,
                 a.created_at DESC
         ";
 

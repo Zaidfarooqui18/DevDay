@@ -10,15 +10,15 @@ class App
     {
         Env::load();
 
-        if (session_status() === PHP_SESSION_NONE) {
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             $savePath = session_save_path();
             if ((empty($savePath) || !is_writable($savePath)) && is_dir('/tmp') && is_writable('/tmp')) {
-                session_save_path('/tmp');
+                @session_save_path('/tmp');
             }
             // Set secure session parameters
-            ini_set('session.cookie_httponly', '1');
-            ini_set('session.use_only_cookies', '1');
-            ini_set('session.cookie_samesite', 'Lax');
+            @ini_set('session.cookie_httponly', '1');
+            @ini_set('session.use_only_cookies', '1');
+            @ini_set('session.cookie_samesite', 'Lax');
             @session_start();
         }
 
