@@ -1,6 +1,6 @@
 /**
  * DevDay Today's Dashboard Controller
- * Real-time assignments list, filters, search, daily review, carry-forward, and learning logs
+ * Anti-Digital Paper Edition: Assignments, Learning Logs, Focus Timer, and Daily Review
  */
 
 (function () {
@@ -14,6 +14,7 @@
         async init() {
             await this.loadProjects();
             await this.loadTodayData();
+            await this.loadTodayLearningLogs();
             await this.loadDailyReview();
             if (window.DevDayReport) {
                 window.DevDayReport.checkReadiness();
@@ -47,25 +48,35 @@
                 const response = await window.DevDayUI.request(url);
                 this.renderStats(response.data.stats);
                 this.renderAssignments(response.data.assignments);
-                this.renderTomorrowSection(response.data.assignments);
             } catch (err) {
                 console.error('[Dashboard Load]', err);
+            }
+        },
+
+        async loadTodayLearningLogs() {
+            try {
+                const response = await window.DevDayUI.request('/api/learning.php?action=today');
+                const logs = response.data || [];
+                this.renderLearningSection(logs);
+            } catch (err) {
+                console.warn('[Learning Logs Load]', err);
             }
         },
 
         renderStats(stats) {
             if (!stats) return;
 
-            document.getElementById('stat-total-tasks').textContent = stats.total_tasks;
-            document.getElementById('stat-completed-tasks').textContent = stats.completed_tasks;
-            document.getElementById('stat-focus-time').textContent = window.DevDayUI.formatMinutes(stats.focus_minutes);
-            document.getElementById('stat-progress').textContent = `${Math.round(stats.completion_percentage)}%`;
+            const totalEl = document.getElementById('stat-total-tasks');
+            const compEl = document.getElementById('stat-completed-tasks');
+            const focusEl = document.getElementById('stat-focus-time');
+            const progEl = document.getElementById('stat-progress');
+            const barEl = document.getElementById('stat-progress-bar');
 
-            // Progress bar
-            const progressBar = document.getElementById('stat-progress-bar');
-            if (progressBar) {
-                progressBar.style.width = `${stats.completion_percentage}%`;
-            }
+            if (totalEl) totalEl.textContent = stats.total_tasks;
+            if (compEl) compEl.textContent = stats.completed_tasks;
+            if (focusEl) focusEl.textContent = window.DevDayUI.formatMinutes(stats.focus_minutes);
+            if (progEl) progEl.textContent = `${Math.round(stats.completion_percentage)}%`;
+            if (barEl) barEl.style.width = `${stats.completion_percentage}%`;
         },
 
         setFilter(filter) {
@@ -74,9 +85,9 @@
             // Update UI filter pill active states
             document.querySelectorAll('.filter-pill').forEach(btn => {
                 if (btn.dataset.filter === filter) {
-                    btn.className = 'filter-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white shadow-sm transition-all';
+                    btn.className = 'filter-pill px-2.5 py-1 rounded border border-ink bg-paper-warm shadow-[1.5px_1.5px_0px_#1A1A1A] text-ink font-bold';
                 } else {
-                    btn.className = 'filter-pill px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all';
+                    btn.className = 'filter-pill px-2.5 py-1 rounded text-ink-muted hover:text-ink hover:bg-paper-warm transition-all font-bold';
                 }
             });
 
@@ -88,7 +99,7 @@
             searchDebounceTimeout = setTimeout(() => {
                 currentSearch = val.trim();
                 this.loadTodayData();
-            }, 250);
+            }, 200);
         },
 
         renderAssignments(assignments) {
@@ -97,112 +108,97 @@
 
             if (!assignments || assignments.length === 0) {
                 list.innerHTML = `
-                    <div class="p-12 text-center rounded-2xl bg-[#111726]/60 border border-slate-800 space-y-3">
-                        <div class="w-12 h-12 rounded-2xl bg-indigo-950/50 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
-                            <i data-lucide="inbox" class="w-6 h-6"></i>
-                        </div>
-                        <h4 class="text-sm font-bold text-white">No assignments found for today</h4>
-                        <p class="text-xs text-slate-400 max-w-sm mx-auto">Start planning your work by adding daily tasks. DevDay will compile them automatically into your report.</p>
-                        <button onclick="window.DevDayUI.openAddAssignmentModal()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all">
-                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                            <span>Add Assignment</span>
+                    <div class="p-8 text-center paper-card bg-paper-warm space-y-2.5">
+                        <div class="font-hand font-bold text-2xl text-ink">no tasks found for today.</div>
+                        <p class="text-xs text-ink-pencil max-w-sm mx-auto">Click below to add assignments for today. DevDay will organize your time and compile your report.</p>
+                        <button onclick="window.DevDayUI.openAddAssignmentModal()" class="sketch-btn sketch-btn-primary sketch-btn-sm inline-flex mt-2">
+                            <span>+ add something</span>
                         </button>
                     </div>
                 `;
-                if (window.lucide) lucide.createIcons();
                 return;
             }
 
             const activeSession = window.DevDayTimer?.getActive();
 
             let html = '';
-            assignments.forEach(a => {
+            assignments.forEach((a, idx) => {
                 const isCompleted = a.status === 'COMPLETED';
                 const isFocusing = activeSession && parseInt(activeSession.assignment_id) === parseInt(a.id);
                 const isOverdue = a.is_overdue == 1;
 
-                // Priority colors
+                // Subtle alternating tilt for organic human notebook appearance
+                const tiltClass = (idx % 2 === 0) ? 'tilt-left' : 'tilt-right';
+
+                // Priority Badge
                 let priorityBadge = '';
                 if (a.priority === 'Urgent') {
-                    priorityBadge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">Urgent</span>';
+                    priorityBadge = '<span class="stamp stamp-red">urgent</span>';
                 } else if (a.priority === 'High') {
-                    priorityBadge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">High</span>';
+                    priorityBadge = '<span class="stamp stamp-red">high</span>';
                 } else if (a.priority === 'Medium') {
-                    priorityBadge = '<span class="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60">Medium</span>';
+                    priorityBadge = '<span class="stamp stamp-amber">medium</span>';
                 } else {
-                    priorityBadge = '<span class="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800/60 text-slate-400 border border-slate-700/40">Low</span>';
+                    priorityBadge = '<span class="stamp stamp-neutral">low</span>';
                 }
 
-                // Category Badge class
-                const catLower = (a.category || 'coding').toLowerCase();
-                const badgeClass = `badge-${catLower}` in ['badge-coding', 'badge-dsa', 'badge-devops', 'badge-research', 'badge-project', 'badge-learning'] ? `badge-${catLower}` : 'badge-default';
-
                 html += `
-                    <div class="group relative flex items-center justify-between p-4 rounded-xl border transition-all ${
-                        isFocusing 
-                            ? 'bg-[#121c2e] border-cyan-500/50 glow-cyan' 
-                            : isCompleted 
-                                ? 'bg-[#111726]/60 border-slate-800/80 opacity-80' 
-                                : 'bg-[#111726] border-slate-800 hover:border-slate-700 hover:bg-[#141c2e]'
-                    }">
-                        <!-- Left checkbox + Task Info -->
-                        <div class="flex items-start gap-3.5 flex-1 min-w-0 pr-4">
+                    <div class="paper-card p-4 bg-paper transition-all flex items-start justify-between gap-3 ${isFocusing ? 'border-[#8B4513] shadow-[3px_3px_0px_#8B4513] bg-[#FFFDEB]' : ''} ${isCompleted ? 'bg-paper-warm opacity-85' : ''}">
+                        
+                        <!-- Left Checkbox & Task Information -->
+                        <div class="flex items-start gap-3 flex-1 min-w-0">
                             <input 
                                 type="checkbox" 
-                                class="custom-checkbox mt-0.5 shrink-0" 
+                                class="sketch-checkbox mt-0.5" 
                                 ${isCompleted ? 'checked' : ''}
                                 onchange="window.DevDayDashboard.toggleTaskStatus(${a.id}, this.checked)"
                                 title="${isCompleted ? 'Mark Incomplete' : 'Mark Complete'}"
                             >
 
                             <div class="flex-1 min-w-0 cursor-pointer" onclick="window.DevDayDashboard.openDetailDrawer(${a.id})">
-                                <div class="flex items-center gap-2 flex-wrap mb-1">
-                                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded ${badgeClass}">${a.category || 'Coding'}</span>
-                                    ${a.project_name ? `<span class="text-[11px] text-slate-400 flex items-center gap-1"><i data-lucide="folder" class="w-3 h-3 text-slate-500"></i> ${a.project_name}</span>` : ''}
+                                <div class="flex items-center gap-1.5 flex-wrap mb-1">
+                                    <span class="stamp stamp-brown">${a.category || 'Coding'}</span>
+                                    ${a.project_name ? `<span class="stamp stamp-neutral font-mono">${a.project_name}</span>` : ''}
                                     ${priorityBadge}
-                                    ${isOverdue ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-950/60 text-rose-400 border border-rose-800/60 animate-pulse">Overdue</span>' : ''}
-                                    ${isFocusing ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-500/40 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span> Focusing</span>' : ''}
+                                    ${isOverdue ? '<span class="stamp stamp-red">overdue</span>' : ''}
+                                    ${isFocusing ? '<span class="stamp stamp-amber font-mono animate-pulse">▶ focusing</span>' : ''}
                                 </div>
 
-                                <h3 class="text-sm font-semibold text-white truncate leading-snug group-hover:text-indigo-200 transition-colors ${isCompleted ? 'line-through text-slate-400' : ''}">
+                                <h3 class="text-sm font-bold text-ink leading-snug hover:text-ink-brown transition-colors ${isCompleted ? 'line-through text-ink-muted' : ''}">
                                     ${a.title}
                                 </h3>
 
-                                <div class="flex items-center gap-3 text-xs text-slate-400 mt-1 flex-wrap">
-                                    ${a.estimated_minutes > 0 ? `<span>Est: <strong class="text-slate-300 font-mono">${window.DevDayUI.formatMinutes(a.estimated_minutes)}</strong></span>` : ''}
-                                    ${a.actual_minutes > 0 ? `<span>Actual: <strong class="text-cyan-400 font-mono">${window.DevDayUI.formatMinutes(a.actual_minutes)}</strong></span>` : ''}
-                                    ${a.deadline ? `<span class="text-[11px] ${isOverdue ? 'text-rose-400 font-medium' : 'text-slate-400'}">Due: ${new Date(a.deadline).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>` : ''}
-                                    ${a.learning_log_id ? '<span class="text-purple-400 text-[11px] flex items-center gap-0.5"><i data-lucide="sparkles" class="w-3 h-3"></i> Learning Logged</span>' : ''}
+                                <div class="flex items-center gap-3 text-[11px] text-ink-pencil mt-1 flex-wrap font-mono">
+                                    ${a.estimated_minutes > 0 ? `<span>est: <strong>${window.DevDayUI.formatMinutes(a.estimated_minutes)}</strong></span>` : ''}
+                                    ${a.actual_minutes > 0 ? `<span class="text-ink-brown">time: <strong>${window.DevDayUI.formatMinutes(a.actual_minutes)}</strong></span>` : ''}
+                                    ${a.deadline ? `<span class="${isOverdue ? 'text-stamp-red font-bold' : ''}">due: ${new Date(a.deadline).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>` : ''}
+                                    ${a.learning_log_id ? '<span class="text-stamp-green font-bold flex items-center gap-0.5">★ learned</span>' : ''}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Right Quick Actions -->
-                        <div class="flex items-center gap-1.5 shrink-0">
+                        <!-- Right Quick Action Buttons -->
+                        <div class="flex items-center gap-1.5 shrink-0 pt-0.5">
                             ${!isCompleted ? `
                                 <button 
                                     onclick="${isFocusing ? `window.DevDayTimer.stop()` : `window.DevDayTimer.start(${a.id})`}"
-                                    class="p-2 rounded-lg text-xs font-semibold transition-all ${
-                                        isFocusing 
-                                            ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400 shadow-md shadow-cyan-500/30' 
-                                            : 'bg-white/5 text-slate-300 hover:text-white hover:bg-white/10'
-                                    }"
-                                    title="${isFocusing ? 'Pause / Stop Timer' : 'Start Focus Session'}"
+                                    class="sketch-btn sketch-btn-sm ${isFocusing ? 'sketch-btn-brown' : ''}"
+                                    title="${isFocusing ? 'Pause Focus Session' : 'Start Focus Session'}"
                                 >
-                                    <i data-lucide="${isFocusing ? 'pause' : 'play'}" class="w-4 h-4 fill-current"></i>
+                                    <span>${isFocusing ? '■ pause' : '▶ focus'}</span>
                                 </button>
                             ` : `
                                 <button 
                                     onclick="window.DevDayDashboard.openLearningLogModal(${a.id})"
-                                    class="p-2 rounded-lg text-purple-400 hover:text-purple-300 hover:bg-purple-950/30 transition-all text-xs"
-                                    title="Add / Edit Learning Log"
+                                    class="sketch-btn sketch-btn-sm"
+                                    title="Add or edit what you learned"
                                 >
-                                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                                    <span>✎ learned</span>
                                 </button>
                             `}
 
-                            <button onclick="window.DevDayDashboard.openDetailDrawer(${a.id})" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5" title="View Details">
-                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            <button onclick="window.DevDayDashboard.openDetailDrawer(${a.id})" class="p-1.5 rounded border border-ink hover:bg-paper-warm text-ink text-xs font-bold" title="Open details">
+                                ➔
                             </button>
                         </div>
                     </div>
@@ -210,37 +206,34 @@
             });
 
             list.innerHTML = html;
-            if (window.lucide) lucide.createIcons();
         },
 
-        renderTomorrowSection(assignments) {
-            const container = document.getElementById('tomorrow-list');
+        renderLearningSection(logs) {
+            const container = document.getElementById('today-learning-list');
             if (!container) return;
 
-            // Incomplete tasks eligible for carry-forward
-            const unfinished = assignments.filter(a => a.status !== 'COMPLETED' && a.status !== 'CARRIED_FORWARD');
-
-            if (unfinished.length === 0) {
+            if (!logs || logs.length === 0) {
                 container.innerHTML = `
-                    <div class="p-4 rounded-xl bg-[#111726]/40 border border-slate-800 text-xs text-slate-400 text-center">
-                        All today's tasks completed! Tomorrow's plan will reflect your daily review summary.
+                    <div class="p-4 paper-card-sm bg-paper-warm text-xs text-ink-muted italic">
+                        no learning entries logged yet today. check off a task or click "learned" to record discoveries.
                     </div>
                 `;
                 return;
             }
 
             let html = '<div class="space-y-2">';
-            unfinished.forEach(u => {
+            logs.forEach(l => {
                 html += `
-                    <div class="flex items-center justify-between p-3 rounded-xl bg-[#090d16] border border-slate-800 text-xs">
-                        <div class="flex items-center gap-2 truncate pr-2">
-                            <span class="text-slate-500 font-mono">&rarr;</span>
-                            <span class="font-medium text-slate-200 truncate">${u.title}</span>
-                            <span class="text-[10px] text-slate-400">(${u.category})</span>
+                    <div class="paper-card-sm p-3 bg-paper space-y-1">
+                        <div class="flex items-baseline justify-between text-xs">
+                            <span class="font-bold text-ink flex items-center gap-1">
+                                <span class="text-ink-brown font-mono">•</span>
+                                ${l.what_learned || 'Completed assignment deliverable'}
+                            </span>
+                            <span class="stamp stamp-neutral text-[10px]">${l.difficulty || 'Medium'}</span>
                         </div>
-                        <button onclick="window.DevDayDashboard.carryForwardTask(${u.id})" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-indigo-600 text-slate-300 hover:text-white text-[11px] font-semibold transition-all shrink-0">
-                            Carry Forward
-                        </button>
+                        ${l.what_built ? `<div class="text-[11px] text-ink-pencil pl-3 font-mono">built: ${l.what_built}</div>` : ''}
+                        ${l.assignment_title ? `<div class="text-[10px] text-ink-muted pl-3 italic font-serif">task: ${l.assignment_title}</div>` : ''}
                     </div>
                 `;
             });
@@ -252,19 +245,20 @@
         async toggleTaskStatus(id, isCompleted) {
             const status = isCompleted ? 'COMPLETED' : 'TODO';
             try {
-                const response = await window.DevDayUI.request('/api/assignments.php?action=toggle_status', {
+                await window.DevDayUI.request('/api/assignments.php?action=toggle_status', {
                     method: 'POST',
                     body: { id, status }
                 });
 
-                window.DevDayUI.showToast(isCompleted ? 'Task marked complete!' : 'Task reopened.', 'success');
+                window.DevDayUI.showToast(isCompleted ? 'Task finished!' : 'Task reopened.', 'success');
                 this.loadTodayData();
+                this.loadTodayLearningLogs();
 
-                // If completed, prompt for learning log
+                // If completed, prompt for quick learning log
                 if (isCompleted) {
                     setTimeout(() => {
                         this.openLearningLogModal(id);
-                    }, 400);
+                    }, 350);
                 }
 
                 if (window.DevDayReport) {
@@ -275,48 +269,38 @@
             }
         },
 
-        async carryForwardTask(id) {
-            try {
-                await window.DevDayUI.request('/api/assignments.php?action=carry_forward', {
-                    method: 'POST',
-                    body: { id }
-                });
-
-                window.DevDayUI.showToast('Task carried forward to tomorrow!', 'success');
-                this.loadTodayData();
-            } catch (err) {
-                window.DevDayUI.showToast(err.message || 'Failed to carry forward.', 'error');
-            }
-        },
-
         async saveAssignment(e) {
             e.preventDefault();
-            const form = e.target;
             const id = document.getElementById('assignment-id').value;
             const submitBtn = document.getElementById('assignment-submit-btn');
 
             const payload = {
-                title: document.getElementById('assign-title').value,
-                description: document.getElementById('assign-desc').value,
+                title: document.getElementById('assign-title').value.trim(),
+                description: document.getElementById('assign-desc').value.trim(),
                 project_id: document.getElementById('assign-project').value,
                 category: document.getElementById('assign-category').value,
                 priority: document.getElementById('assign-priority').value,
                 estimated_minutes: document.getElementById('assign-est').value,
                 deadline: document.getElementById('assign-deadline').value,
-                expected_output: document.getElementById('assign-output').value,
+                expected_output: document.getElementById('assign-output').value.trim(),
             };
+
+            if (!payload.title) {
+                window.DevDayUI.showToast('Please enter an assignment title.', 'error');
+                return;
+            }
 
             if (id) payload.id = id;
 
             try {
-                submitBtn.disabled = true;
+                if (submitBtn) submitBtn.disabled = true;
                 const action = id ? 'update' : 'create';
                 await window.DevDayUI.request(`/api/assignments.php?action=${action}`, {
                     method: 'POST',
                     body: payload
                 });
 
-                window.DevDayUI.showToast(id ? 'Assignment updated!' : 'Assignment created!', 'success');
+                window.DevDayUI.showToast(id ? 'Task updated!' : 'Task added to today\'s work.', 'success');
                 window.DevDayUI.closeModal('assignment-modal');
                 this.loadTodayData();
 
@@ -324,9 +308,9 @@
                     window.DevDayReport.checkReadiness();
                 }
             } catch (err) {
-                window.DevDayUI.showToast(err.message || 'Validation error.', 'error');
+                window.DevDayUI.showToast(err.message || 'Error saving assignment.', 'error');
             } finally {
-                submitBtn.disabled = false;
+                if (submitBtn) submitBtn.disabled = false;
             }
         },
 
@@ -339,9 +323,9 @@
                 // Load badges
                 const badgesContainer = document.getElementById('detail-badges');
                 badgesContainer.innerHTML = `
-                    <span class="text-xs font-semibold px-2.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800/60">${a.category}</span>
-                    ${a.project_name ? `<span class="text-xs font-medium px-2.5 py-0.5 rounded bg-slate-800 text-slate-300">${a.project_name}</span>` : ''}
-                    <span class="text-xs font-semibold px-2.5 py-0.5 rounded bg-slate-800 text-slate-200">${a.priority} Priority</span>
+                    <span class="stamp stamp-brown">${a.category}</span>
+                    ${a.project_name ? `<span class="stamp stamp-neutral font-mono">${a.project_name}</span>` : ''}
+                    <span class="stamp stamp-amber">${a.priority} Priority</span>
                 `;
 
                 document.getElementById('detail-title').textContent = a.title;
@@ -349,9 +333,9 @@
                 
                 const outputEl = document.getElementById('detail-expected-output');
                 if (a.expected_output) {
-                    outputEl.innerHTML = `<i data-lucide="target" class="w-4 h-4 text-cyan-400"></i> <span>${a.expected_output}</span>`;
+                    outputEl.innerHTML = `<span class="text-ink-brown font-mono font-bold">&bull;</span> <span>${a.expected_output}</span>`;
                 } else {
-                    outputEl.innerHTML = `<span class="text-slate-500 italic">No specific expected deliverable documented.</span>`;
+                    outputEl.innerHTML = `<span class="text-ink-muted italic">No specific expected deliverable documented.</span>`;
                 }
 
                 document.getElementById('detail-estimated').textContent = window.DevDayUI.formatMinutes(a.estimated_minutes);
@@ -365,7 +349,7 @@
                 const sessionList = document.getElementById('detail-sessions-list');
 
                 if (sessions.length === 0) {
-                    sessionList.innerHTML = `<div class="text-xs text-slate-500 italic p-3 bg-[#090d16] rounded-xl border border-slate-800 text-center">No focus sessions recorded yet for this task.</div>`;
+                    sessionList.innerHTML = `<div class="text-xs text-ink-muted italic p-2.5 bg-paper-warm rounded border border-[#D4C4A8] text-center">No focus sessions recorded yet for this task.</div>`;
                     document.getElementById('detail-sessions-total').textContent = 'Total: 0m';
                 } else {
                     let sHtml = '';
@@ -376,9 +360,9 @@
                         const start = new Date(s.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                         const end = s.ended_at ? new Date(s.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Active Now';
                         sHtml += `
-                            <div class="flex items-center justify-between p-2.5 rounded-lg bg-[#090d16] border border-slate-800/80 text-xs">
-                                <span class="font-mono text-slate-300">${start} &ndash; ${end}</span>
-                                <span class="font-mono font-bold text-cyan-400">${window.DevDayUI.formatMinutes(Math.round(dur / 60))}</span>
+                            <div class="flex items-center justify-between p-2 rounded bg-paper-warm border border-ink text-xs font-mono">
+                                <span>${start} &ndash; ${end}</span>
+                                <span class="font-bold text-ink-brown">${window.DevDayUI.formatMinutes(Math.round(dur / 60))}</span>
                             </div>
                         `;
                     });
@@ -386,11 +370,11 @@
                     document.getElementById('detail-sessions-total').textContent = `Total: ${window.DevDayUI.formatMinutes(Math.round(totalSec / 60))}`;
                 }
 
-                // Focus button label
+                // Focus button state
                 const isFocusing = window.DevDayTimer?.getActive() && parseInt(window.DevDayTimer.getActive().assignment_id) === parseInt(id);
                 const focusBtn = document.getElementById('drawer-focus-btn');
                 if (focusBtn) {
-                    focusBtn.innerHTML = `<i data-lucide="${isFocusing ? 'pause' : 'play'}" class="w-3.5 h-3.5 fill-current"></i> <span>${isFocusing ? 'Stop Focus' : 'Start Focus'}</span>`;
+                    focusBtn.innerHTML = `<span>${isFocusing ? '■ Stop Focus' : '▶ Start Focus'}</span>`;
                 }
 
                 window.DevDayUI.openModal('detail-drawer');
@@ -492,11 +476,16 @@
             const assignmentId = document.getElementById('learning-assignment-id').value;
             const payload = {
                 assignment_id: assignmentId,
-                what_learned: document.getElementById('learning-what-learned').value,
-                what_built: document.getElementById('learning-what-built').value,
+                what_learned: document.getElementById('learning-what-learned').value.trim(),
+                what_built: document.getElementById('learning-what-built').value.trim(),
                 difficulty: document.getElementById('learning-difficulty').value,
-                blocker: document.getElementById('learning-blocker').value,
+                blocker: document.getElementById('learning-blocker').value.trim(),
             };
+
+            if (!payload.what_learned) {
+                window.DevDayUI.showToast('Please record what you learned.', 'error');
+                return;
+            }
 
             try {
                 await window.DevDayUI.request('/api/learning.php?action=save', {
@@ -504,9 +493,10 @@
                     body: payload
                 });
 
-                window.DevDayUI.showToast('Learning log saved to your daily report!', 'success');
+                window.DevDayUI.showToast('Learning log recorded!', 'success');
                 window.DevDayUI.closeModal('learning-modal');
                 this.loadTodayData();
+                this.loadTodayLearningLogs();
 
                 if (window.DevDayReport) {
                     window.DevDayReport.checkReadiness();
@@ -533,10 +523,12 @@
         async saveDailyReview(e) {
             e.preventDefault();
             const payload = {
-                biggest_achievement: document.getElementById('review-achievement').value,
-                main_blocker: document.getElementById('review-blocker').value,
-                tomorrow_plan: document.getElementById('review-tomorrow').value,
+                biggest_achievement: document.getElementById('review-achievement').value.trim(),
+                main_blocker: document.getElementById('review-blocker').value.trim(),
+                tomorrow_plan: document.getElementById('review-tomorrow').value.trim(),
             };
+
+            const statusEl = document.getElementById('review-save-status');
 
             try {
                 await window.DevDayUI.request('/api/reviews.php?action=save', {
@@ -544,7 +536,12 @@
                     body: payload
                 });
 
+                if (statusEl) {
+                    statusEl.textContent = '✓ Saved to daily report!';
+                    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+                }
                 window.DevDayUI.showToast('Daily review saved!', 'success');
+                
                 if (window.DevDayReport) {
                     window.DevDayReport.checkReadiness();
                 }
@@ -554,7 +551,6 @@
         },
 
         refreshUIState() {
-            // Re-render assignments to update focus pills
             this.loadTodayData();
         }
     };

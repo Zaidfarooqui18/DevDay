@@ -47,11 +47,9 @@
                 if (!activeSession) return;
                 
                 // Calculate elapsed time from server timestamp
-                const startedAt = new Date(activeSession.started_at.replace(' ', 'T') + 'Z').getTime();
-                // Or fallback to parsed local if needed
+                const startedTime = new Date(activeSession.started_at.replace(' ', 'T')).getTime();
                 const now = Date.now();
-                // Compute seconds directly using local clock reference offset
-                const elapsedSeconds = Math.max(0, Math.floor((now - new Date(activeSession.started_at).getTime()) / 1000));
+                const elapsedSeconds = Math.max(0, Math.floor((now - startedTime) / 1000));
                 
                 this.renderTime(elapsedSeconds);
             };
@@ -71,7 +69,7 @@
                 navTimer.classList.remove('hidden');
                 navTimer.classList.add('flex');
                 navClock.textContent = formatted;
-                navTask.textContent = activeSession.assignment_title || 'Task Focus';
+                navTask.textContent = activeSession.assignment_title || 'Focusing';
             }
 
             // 2. Update dashboard hero focus widget if present
@@ -100,10 +98,10 @@
                 if (heroWidget) {
                     heroWidget.classList.add('hidden');
                 }
-                document.title = 'DevDay — Personal Daily Work & Development System';
+                document.title = 'DevDay — Developer Daily Work & Reporting System';
             }
 
-            // Trigger dashboard refresh if available to update focus badges
+            // Refresh dashboard UI state if present to show focus badges
             if (window.DevDayDashboard && typeof window.DevDayDashboard.refreshUIState === 'function') {
                 window.DevDayDashboard.refreshUIState();
             }
@@ -116,7 +114,7 @@
                     body: { assignment_id: assignmentId }
                 });
 
-                window.DevDayUI.showToast('Focus session started!', 'success');
+                window.DevDayUI.showToast('Focus session started.', 'info');
                 this.setActiveSession(response.data.session);
 
                 if (window.DevDayDashboard && typeof window.DevDayDashboard.loadTodayData === 'function') {
@@ -134,8 +132,9 @@
                     body: { session_id: sessionId || activeSession?.id }
                 });
 
-                const durationSec = response.data.session?.duration_seconds || 0;
-                window.DevDayUI.showToast(`Focus session saved (${window.DevDayUI.formatMinutes(Math.round(durationSec / 60))})`, 'success');
+                const durationSec = response.data?.session?.duration_seconds || 0;
+                const minutesFormatted = window.DevDayUI.formatMinutes(Math.round(durationSec / 60));
+                window.DevDayUI.showToast(`Focus session saved (${minutesFormatted}).`, 'success');
                 
                 this.clearActiveSession();
 

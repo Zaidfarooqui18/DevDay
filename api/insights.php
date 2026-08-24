@@ -7,7 +7,6 @@ use DevDay\Config\Database;
 use DevDay\Helpers\Response;
 use DevDay\Helpers\Sanitizer;
 use DevDay\Middleware\AuthMiddleware;
-use PDO;
 
 App::init();
 $user = AuthMiddleware::requireApiAuth();

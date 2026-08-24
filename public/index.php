@@ -8,225 +8,198 @@ use DevDay\Helpers\Sanitizer;
 
 App::init();
 $currentUser = AuthMiddleware::requireAuth();
-$pageTitle = 'Today — DevDay';
+$pageTitle = 'today — DevDay';
 $activePage = 'today';
 $pageScript = '/assets/js/dashboard.js';
 
-$todayFormatted = date('l, F j');
+$dayOfWeek = strtolower(date('l'));
+$fullDate = strtolower(date('F j'));
 ?>
 <?php include dirname(__DIR__) . '/templates/layout/header.php'; ?>
 <?php include dirname(__DIR__) . '/templates/layout/nav.php'; ?>
 
-<main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+<main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-    <!-- HERO / GREETING & LIVE STATS -->
-    <div class="space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <!-- EDITORIAL HEADER GREETING -->
+    <div class="space-y-1 pb-4 border-b-2 border-ink">
+        <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
             <div>
-                <p class="text-xs font-bold uppercase tracking-widest text-indigo-400 font-mono"><?= $todayFormatted ?></p>
-                <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
-                    Your daily developer workspace
+                <h1 class="font-hand font-bold text-3xl sm:text-4xl text-ink tracking-tight">
+                    today is <?= $dayOfWeek ?>, <?= $fullDate ?>.
                 </h1>
-                <p class="text-xs sm:text-sm text-slate-400 mt-1">
-                    Plan, track actual focus time, record learning, and dispatch your executive work report.
+                <p class="font-hand text-xl text-ink-pencil mt-0.5">
+                    let's get some things done.
                 </p>
             </div>
 
-            <!-- Quick Action Button -->
-            <div class="flex items-center gap-3">
-                <button onclick="window.DevDayUI.openAddAssignmentModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Add Assignment</span>
-                    <kbd class="px-1.5 py-0.5 text-[10px] bg-indigo-700 rounded text-indigo-200 border border-indigo-500/30">N</kbd>
-                </button>
-            </div>
-        </div>
-
-        <!-- 4 LIVE KPI STATISTICS -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Stat 1: Total Tasks -->
-            <div class="p-5 rounded-2xl bg-[#111726] border border-slate-800 flex flex-col justify-between">
-                <div class="flex items-center justify-between text-slate-400 mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider">Total Tasks</span>
-                    <i data-lucide="layers" class="w-4 h-4 text-slate-500"></i>
-                </div>
-                <div class="flex items-baseline gap-2">
-                    <span id="stat-total-tasks" class="text-3xl font-extrabold text-white font-mono">0</span>
-                    <span class="text-xs text-slate-500">planned</span>
-                </div>
-            </div>
-
-            <!-- Stat 2: Completed -->
-            <div class="p-5 rounded-2xl bg-[#111726] border border-slate-800 flex flex-col justify-between">
-                <div class="flex items-center justify-between text-slate-400 mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider">Completed</span>
-                    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
-                </div>
-                <div class="flex items-baseline gap-2">
-                    <span id="stat-completed-tasks" class="text-3xl font-extrabold text-emerald-400 font-mono">0</span>
-                    <span class="text-xs text-slate-500">finished</span>
-                </div>
-            </div>
-
-            <!-- Stat 3: Focus Time -->
-            <div class="p-5 rounded-2xl bg-[#111726] border border-slate-800 flex flex-col justify-between">
-                <div class="flex items-center justify-between text-slate-400 mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider">Focus Time</span>
-                    <i data-lucide="timer" class="w-4 h-4 text-cyan-400"></i>
-                </div>
-                <div class="flex items-baseline gap-2">
-                    <span id="stat-focus-time" class="text-3xl font-extrabold text-cyan-400 font-mono">0m</span>
-                    <span class="text-xs text-slate-500">tracked</span>
-                </div>
-            </div>
-
-            <!-- Stat 4: Progress -->
-            <div class="p-5 rounded-2xl bg-[#111726] border border-slate-800 flex flex-col justify-between">
-                <div class="flex items-center justify-between text-slate-400 mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider">Progress</span>
-                    <i data-lucide="trending-up" class="w-4 h-4 text-purple-400"></i>
-                </div>
-                <div>
-                    <div class="flex items-baseline gap-2">
-                        <span id="stat-progress" class="text-3xl font-extrabold text-purple-400 font-mono">0%</span>
-                        <span class="text-xs text-slate-500">completion</span>
-                    </div>
-                    <div class="w-full bg-[#090d16] rounded-full h-1.5 mt-2 overflow-hidden border border-slate-800">
-                        <div id="stat-progress-bar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
+            <!-- Quick Add CTA -->
+            <button onclick="window.DevDayUI.openAddAssignmentModal()" class="sketch-btn sketch-btn-primary self-start sm:self-auto">
+                <span>+ add something</span>
+                <kbd class="ml-1 px-1 py-0.2 text-[10px] bg-[#333] text-[#DDD] rounded border border-[#555]">N</kbd>
+            </button>
         </div>
     </div>
 
-    <!-- FLOATING FOCUS HERO WIDGET (APPEARS WHEN ACTIVE TIMER RUNS) -->
-    <div id="dashboard-focus-widget" class="hidden p-4 rounded-2xl bg-gradient-to-r from-cyan-950/80 to-indigo-950/80 border border-cyan-500/40 glow-cyan transition-all">
-        <div class="flex items-center justify-between flex-wrap gap-4">
+    <!-- FLOATING ACTIVE FOCUS TAPE WIDGET (APPEARS WHEN ACTIVE TIMER RUNS) -->
+    <div id="dashboard-focus-widget" class="hidden p-4 rounded bg-[#F5EEDF] border-2 border-ink shadow-[3px_3px_0px_#1A1A1A] transition-all">
+        <div class="flex items-center justify-between flex-wrap gap-3">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                    <i data-lucide="flame" class="w-5 h-5 animate-pulse"></i>
+                <div class="w-8 h-8 rounded-full bg-[#8B4513] text-white flex items-center justify-center font-bold font-mono text-sm">
+                    ▶
                 </div>
                 <div>
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-ink-brown flex items-center gap-1.5 font-mono">
+                        <span class="w-2 h-2 rounded-full bg-[#8B4513] animate-ping"></span>
                         Active Focus Session
                     </div>
-                    <h3 id="dashboard-focus-task" class="text-sm font-bold text-white">Focusing...</h3>
+                    <h3 id="dashboard-focus-task" class="text-sm font-bold text-ink">Focusing...</h3>
                 </div>
             </div>
 
             <div class="flex items-center gap-4">
-                <div id="dashboard-focus-clock" class="text-2xl font-extrabold text-cyan-300 font-mono">00:00:00</div>
-                <button onclick="window.DevDayTimer.stop()" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-md transition-all">
-                    <i data-lucide="square" class="w-3.5 h-3.5 fill-current"></i>
-                    <span>Finish Session</span>
+                <div id="dashboard-focus-clock" class="text-2xl font-black text-ink-brown font-mono">00:00:00</div>
+                <button onclick="window.DevDayTimer.stop()" class="sketch-btn sketch-btn-sm sketch-btn-brown">
+                    <span>■ Finish Focus</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- MAIN TWO-COLUMN WORKSPACE -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        <!-- LEFT 2 COLUMNS: TODAY'S ASSIGNMENTS LIST -->
-        <div class="lg:col-span-2 space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-800/80">
-                <div class="flex items-center gap-2">
-                    <h2 class="text-base font-bold text-white">Today's Assignments</h2>
-                    <span class="text-xs text-slate-500 font-mono">Click card to view details</span>
-                </div>
-
-                <!-- Filter Tabs -->
-                <div class="flex items-center gap-1 bg-[#111726] p-1 rounded-xl border border-slate-800/80 overflow-x-auto">
-                    <button onclick="window.DevDayDashboard.setFilter('all')" data-filter="all" class="filter-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white shadow-sm transition-all">
-                        All
-                    </button>
-                    <button onclick="window.DevDayDashboard.setFilter('active')" data-filter="active" class="filter-pill px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all">
-                        Active
-                    </button>
-                    <button onclick="window.DevDayDashboard.setFilter('completed')" data-filter="completed" class="filter-pill px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all">
-                        Done
-                    </button>
-                    <button onclick="window.DevDayDashboard.setFilter('overdue')" data-filter="overdue" class="filter-pill px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all">
-                        Overdue
-                    </button>
-                </div>
+    <!-- SECTION 1: TODAY'S WORK -->
+    <section class="space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <h2 class="font-hand font-bold text-2xl text-ink">today's work *</h2>
+                <span class="text-xs text-ink-muted italic font-serif">(click task to view details)</span>
             </div>
 
-            <!-- Search input -->
-            <div class="relative">
-                <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                <input 
-                    type="text" 
-                    id="search-input" 
-                    oninput="window.DevDayDashboard.onSearchInput(this.value)" 
-                    placeholder="Search tasks by title, project, description..." 
-                    class="w-full bg-[#111726] border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                >
-            </div>
-
-            <!-- Assignments Container -->
-            <div id="assignment-list" class="space-y-3">
-                <div class="p-8 text-center text-slate-500 text-xs animate-pulse">Loading today's assignments...</div>
+            <!-- Filter tabs -->
+            <div class="flex items-center gap-1.5 text-xs font-bold overflow-x-auto pb-1">
+                <button onclick="window.DevDayDashboard.setFilter('all')" data-filter="all" class="filter-pill px-2.5 py-1 rounded border border-ink bg-paper-warm shadow-[1.5px_1.5px_0px_#1A1A1A] text-ink">
+                    all
+                </button>
+                <button onclick="window.DevDayDashboard.setFilter('active')" data-filter="active" class="filter-pill px-2.5 py-1 rounded text-ink-muted hover:text-ink hover:bg-paper-warm transition-all">
+                    active
+                </button>
+                <button onclick="window.DevDayDashboard.setFilter('completed')" data-filter="completed" class="filter-pill px-2.5 py-1 rounded text-ink-muted hover:text-ink hover:bg-paper-warm transition-all">
+                    finished
+                </button>
+                <button onclick="window.DevDayDashboard.setFilter('overdue')" data-filter="overdue" class="filter-pill px-2.5 py-1 rounded text-ink-muted hover:text-ink hover:bg-paper-warm transition-all">
+                    overdue
+                </button>
             </div>
         </div>
 
-        <!-- RIGHT 1 COLUMN: DAILY REVIEW, TOMORROW & REPORT DISPATCH -->
-        <div class="space-y-6">
-            
-            <!-- TOMORROW'S PLAN & CARRY FORWARD -->
-            <div class="p-5 rounded-2xl bg-[#111726] border border-slate-800 space-y-3">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="calendar-arrow-up" class="w-4 h-4 text-cyan-400"></i>
-                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Tomorrow's Queue</h3>
-                    </div>
-                </div>
+        <!-- Search Bar -->
+        <div class="relative">
+            <input 
+                type="text" 
+                id="search-input" 
+                oninput="window.DevDayDashboard.onSearchInput(this.value)" 
+                placeholder="search tasks by title, project, deliverable..." 
+                class="font-medium text-xs py-2 pl-3"
+            >
+        </div>
 
-                <div id="tomorrow-list">
-                    <!-- Tomorrow Tasks / Carry Forward List -->
-                </div>
+        <!-- Assignments Container -->
+        <div id="assignment-list" class="space-y-3">
+            <div class="p-8 text-center text-ink-muted text-xs font-mono">loading today's work...</div>
+        </div>
+
+        <!-- Bottom Add Button -->
+        <div class="pt-2 flex justify-end">
+            <button onclick="window.DevDayUI.openAddAssignmentModal()" class="sketch-btn sketch-btn-sm">
+                <span>+ add something</span>
+            </button>
+        </div>
+    </section>
+
+    <hr class="sketch-divider">
+
+    <!-- SECTION 2: EDITORIAL METRICS ("today, roughly...") -->
+    <section class="space-y-2">
+        <h2 class="font-hand font-bold text-2xl text-ink">today, roughly...</h2>
+        <div class="p-5 paper-card bg-paper-warm space-y-3">
+            <div class="text-base sm:text-lg font-bold text-ink flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span><strong id="stat-total-tasks" class="font-mono text-xl text-ink">0</strong> tasks</span>
+                <span class="text-ink-muted">&middot;</span>
+                <span><strong id="stat-completed-tasks" class="font-mono text-xl text-stamp-green">0</strong> finished</span>
+                <span class="text-ink-muted">&middot;</span>
+                <span><strong id="stat-focus-time" class="font-mono text-xl text-ink-brown">0m</strong> focused</span>
+                <span class="text-ink-muted">&middot;</span>
+                <span><strong id="stat-progress" class="font-mono text-xl text-ink">0%</strong> done</span>
             </div>
 
-            <!-- DAILY REVIEW FORM -->
-            <div class="p-5 rounded-2xl bg-[#111726] border border-slate-800 space-y-4">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
-                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Daily Review</h3>
-                    </div>
-                    <span class="text-[11px] text-slate-500">Auto-included in report</span>
-                </div>
-
-                <form onsubmit="window.DevDayDashboard.saveDailyReview(event)" class="space-y-3">
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Biggest Achievement</label>
-                        <textarea id="review-achievement" rows="2" placeholder="What was your main breakthrough or delivery today?" class="w-full bg-[#090d16] border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"></textarea>
-                    </div>
-
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Main Blocker / Bottleneck</label>
-                        <input type="text" id="review-blocker" placeholder="Any dependencies or blocking issues..." class="w-full bg-[#090d16] border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Tomorrow's Priority Plan</label>
-                        <textarea id="review-tomorrow" rows="2" placeholder="Next milestones and planned features..." class="w-full bg-[#090d16] border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"></textarea>
-                    </div>
-
-                    <button type="submit" class="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-semibold border border-slate-700/60 transition-colors flex items-center justify-center gap-1.5">
-                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                        <span>Save Review</span>
-                    </button>
-                </form>
-            </div>
-
-            <!-- REPORT READINESS & GENERATE -->
-            <div id="report-readiness-container">
-                <!-- Injected by report.js -->
+            <!-- Progress bar -->
+            <div class="w-full bg-paper border border-ink h-2.5 rounded overflow-hidden">
+                <div id="stat-progress-bar" class="bg-[#2D5A43] h-full transition-all duration-300" style="width: 0%"></div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <hr class="sketch-divider">
+
+    <!-- SECTION 3: THINGS I LEARNED -->
+    <section class="space-y-3">
+        <div class="flex items-center justify-between">
+            <h2 class="font-hand font-bold text-2xl text-ink">things i learned *</h2>
+            <span class="text-xs text-ink-muted italic">auto-compiled into report</span>
+        </div>
+
+        <div id="today-learning-list" class="space-y-2">
+            <div class="p-4 paper-card-sm bg-paper-warm text-xs text-ink-muted italic">
+                no learning entries logged yet today. check off a task or click "Learning Log" to record discoveries.
+            </div>
+        </div>
+    </section>
+
+    <hr class="sketch-divider">
+
+    <!-- SECTION 4: BEFORE YOU LEAVE (DAILY REVIEW) -->
+    <section class="space-y-4">
+        <div>
+            <h2 class="font-hand font-bold text-2xl text-ink">before you leave *</h2>
+            <p class="text-xs text-ink-muted">a quick 60-second reflection on your day's work.</p>
+        </div>
+
+        <form onsubmit="window.DevDayDashboard.saveDailyReview(event)" class="paper-card p-6 bg-paper space-y-4">
+            <div>
+                <label for="review-achievement" class="block text-xs font-bold text-ink uppercase tracking-wider mb-1">
+                    what did you finish? (biggest achievement)
+                </label>
+                <textarea id="review-achievement" rows="2" placeholder="e.g. Implemented JWT auth endpoint and fixed password hash verification."></textarea>
+            </div>
+
+            <div>
+                <label for="review-blocker" class="block text-xs font-bold text-ink uppercase tracking-wider mb-1">
+                    what got in the way? (main blocker)
+                </label>
+                <input type="text" id="review-blocker" placeholder="e.g. Waiting on API gateway specs or CORS headers.">
+            </div>
+
+            <div>
+                <label for="review-tomorrow" class="block text-xs font-bold text-ink uppercase tracking-wider mb-1">
+                    what's tomorrow's problem? (tomorrow's plan)
+                </label>
+                <textarea id="review-tomorrow" rows="2" placeholder="e.g. Connect frontend timer to SQLite session logs and build export view."></textarea>
+            </div>
+
+            <div class="flex items-center justify-between pt-2">
+                <span id="review-save-status" class="text-xs text-stamp-green font-bold"></span>
+                <button type="submit" class="sketch-btn sketch-btn-sm">
+                    <span>save daily review</span>
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <!-- SECTION 5: REPORT READINESS & GENERATE -->
+    <section id="report-readiness-section" class="pt-2">
+        <div id="report-readiness-container">
+            <!-- Injected by report.js -->
+        </div>
+    </section>
+
 </main>
 
 <?php include dirname(__DIR__) . '/templates/layout/footer.php'; ?>

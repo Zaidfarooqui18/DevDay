@@ -7,11 +7,11 @@ use DevDay\Middleware\AuthMiddleware;
 
 App::init();
 $currentUser = AuthMiddleware::user();
-$pageTitle = $pageTitle ?? 'DevDay — Personal Daily Work & Development System';
+$pageTitle = $pageTitle ?? 'DevDay — Developer Daily Work & Reporting System';
 $activePage = $activePage ?? 'today';
 ?>
 <!DOCTYPE html>
-<html lang="en" class="dark h-full bg-[#090d16]">
+<html lang="en" class="h-full bg-[#FAFAF8]">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,42 +21,40 @@ $activePage = $activePage ?? 'today';
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Patrick+Hand&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        brand: {
-                            50: '#eef2ff',
-                            100: '#e0e7ff',
-                            400: '#818cf8',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
+                        canvas: '#FAFAF8',
+                        paper: {
+                            DEFAULT: '#FFFFFF',
+                            warm: '#F7F4EE',
+                            aged: '#EFE9DE',
+                            highlight: '#FFFDEB',
+                            border: '#D4C4A8',
                         },
-                        dark: {
-                            main: '#090d16',
-                            card: '#111726',
-                            hover: '#151e32',
-                            elevated: '#162035',
-                            border: '#1e293b',
-                            subtle: '#334155'
+                        ink: {
+                            DEFAULT: '#1A1A1A',
+                            pencil: '#4A4A4A',
+                            muted: '#6B655B',
+                            brown: '#8B4513',
+                            amber: '#9A6218',
                         },
-                        accent: {
-                            cyan: '#38bdf8',
-                            emerald: '#10b981',
-                            amber: '#f59e0b',
-                            rose: '#f43f5e',
-                            purple: '#a855f7'
+                        stamp: {
+                            green: '#2D5A43',
+                            red: '#B33927',
+                            amber: '#9A6218',
                         }
                     },
                     fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        hand: ['"Patrick Hand"', '"Caveat"', 'cursive'],
+                        caveat: ['"Caveat"', 'cursive'],
                         mono: ['"JetBrains Mono"', 'monospace'],
                     }
                 }
@@ -70,7 +68,7 @@ $activePage = $activePage ?? 'today';
     <!-- Chart.js for Insights -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Custom CSS -->
+    <!-- Custom Anti-Digital Paper CSS -->
     <link rel="stylesheet" href="/assets/css/app.css">
 
     <!-- App Global Context -->
@@ -82,5 +80,5 @@ $activePage = $activePage ?? 'today';
         };
     </script>
 </head>
-<body class="h-full flex flex-col bg-[#090d16] text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+<body class="h-full flex flex-col bg-[#FAFAF8] text-[#1A1A1A] font-sans antialiased">
     <div id="toast-container"></div>

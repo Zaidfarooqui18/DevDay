@@ -221,16 +221,16 @@ class ReportService
             return [
                 'success'   => true,
                 'report_id' => $reportId,
-                'message'   => "Daily report dispatched successfully to {$data['recipient_email']}.",
+                'message'   => "Report handed to the mail server. Sent to: {$data['recipient_email']}",
                 'data'      => $data,
             ];
         } else {
-            $this->reportModel->markFailed($reportId, $userId, $result['error']);
+            $this->reportModel->markFailed($reportId, $userId, $result['error'] ?? 'SMTP dispatch failed');
             return [
                 'success'   => false,
                 'report_id' => $reportId,
-                'message'   => $result['user_message'],
-                'error'     => $result['error'],
+                'message'   => $result['user_message'] ?? "Couldn't send the report. Please check your email configuration in Settings.",
+                'error'     => $result['error'] ?? 'SMTP Error',
                 'data'      => $data,
             ];
         }
@@ -265,14 +265,14 @@ class ReportService
             $this->reportModel->markSent($reportId, $userId);
             return [
                 'success' => true,
-                'message' => "Report resent successfully to {$recipient}.",
+                'message' => "Report handed to the mail server. Sent to: {$recipient}",
             ];
         } else {
-            $this->reportModel->markFailed($reportId, $userId, $result['error']);
+            $this->reportModel->markFailed($reportId, $userId, $result['error'] ?? 'SMTP dispatch failed');
             return [
                 'success' => false,
-                'message' => $result['user_message'],
-                'error'   => $result['error'],
+                'message' => $result['user_message'] ?? "Couldn't send the report. Please check your email configuration.",
+                'error'   => $result['error'] ?? 'SMTP Error',
             ];
         }
     }

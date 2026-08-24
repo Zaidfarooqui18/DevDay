@@ -24,13 +24,15 @@ class MailService
         ?string $replyToEmail = null,
         ?string $replyToName = null
     ): array {
-        // If SMTP credentials are not configured or empty, simulate delivery for local development & testing
-        if (empty($this->config['username']) || empty($this->config['host']) || ($this->config['host'] === 'smtp.mailtrap.io' && empty($this->config['username']))) {
-            error_log("[DevDay MailService Simulated] Report dispatched to: {$toEmail} with subject: '{$subject}'");
+        // Enforce valid SMTP configuration
+        if (empty($this->config['host']) || empty($this->config['username']) || empty($this->config['password'])) {
+            $msg = 'SMTP configuration is incomplete. Please configure your SMTP Host, Username, and Password in Settings.';
+            error_log("[DevDay MailService Notice] SMTP credentials missing. Delivery aborted for: {$toEmail}");
             return [
-                'success'      => true,
-                'is_simulated' => true,
-                'user_message' => "Report generated and recorded. (SMTP credentials are not configured in .env, so delivery was recorded in simulation mode).",
+                'success'      => false,
+                'is_simulated' => false,
+                'error'        => $msg,
+                'user_message' => $msg,
             ];
         }
 
@@ -40,12 +42,12 @@ class MailService
             // Server settings
             $mail->isSMTP();
             $mail->Host       = $this->config['host'];
-            $mail->SMTPAuth   = !empty($this->config['username']);
+            $mail->SMTPAuth   = true;
             $mail->Username   = $this->config['username'];
             $mail->Password   = $this->config['password'];
             $mail->Port       = (int)$this->config['port'];
 
-            // Prevent SSL verification errors in local/dev / Windows OpenSSL environments
+            // Prevent SSL verification errors in local development / Windows environments
             $mail->SMTPOptions = [
                 'ssl' => [
                     'verify_peer' => false,
@@ -65,7 +67,7 @@ class MailService
             }
 
             // Timeout
-            $mail->Timeout = 15;
+            $mail->Timeout = 10;
 
             // Recipients
             $fromEmail = !empty($this->config['from_email']) ? $this->config['from_email'] : $this->config['username'];
@@ -89,7 +91,7 @@ class MailService
             return [
                 'success'      => true,
                 'is_simulated' => false,
-                'user_message' => "Report sent successfully to {$toEmail}.",
+                'user_message' => "Report handed to the mail server. Sent to: {$toEmail}",
             ];
         } catch (PHPMailerException $e) {
             $rawError = $mail->ErrorInfo ?: $e->getMessage();
@@ -97,9 +99,9 @@ class MailService
 
             $userSafeError = 'Unable to connect to SMTP server: ' . $rawError;
             if (str_contains(strtolower($rawError), 'authenticate')) {
-                $userSafeError = 'SMTP authentication failed. If using Gmail, make sure to generate a 16-character Google App Password (not your normal Gmail account password).';
+                $userSafeError = 'SMTP authentication failed. If using Gmail, make sure to generate a 16-character Google App Password (not your regular Gmail password).';
             } elseif (str_contains(strtolower($rawError), 'timed out') || str_contains(strtolower($rawError), 'connection refused')) {
-                $userSafeError = 'SMTP connection timed out. Check SMTP host, port, and firewall/network settings.';
+                $userSafeError = 'SMTP connection timed out. Check your SMTP host, port, and firewall settings.';
             }
 
             return [
@@ -107,7 +109,7 @@ class MailService
                 'is_simulated' => false,
                 'error'        => $userSafeError,
                 'raw_error'    => $rawError,
-                'user_message' => "Failed to deliver email: {$userSafeError}",
+                'user_message' => "Unable to send report. {$userSafeError}",
             ];
         } catch (\Throwable $e) {
             error_log("[DevDay MailService System Error] {$e->getMessage()}");

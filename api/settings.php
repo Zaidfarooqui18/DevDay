@@ -87,7 +87,7 @@ if ($method === 'POST') {
         Response::success($prefs, 'Preferences updated successfully.');
     }
 
-    if ($action === 'save_smtp') {
+    if ($action === 'save_smtp' || $action === 'update_smtp') {
         $host = trim($data['host'] ?? '');
         $port = (int)($data['port'] ?? 587);
         $username = trim($data['username'] ?? '');

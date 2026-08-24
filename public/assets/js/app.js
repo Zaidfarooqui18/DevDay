@@ -1,6 +1,6 @@
 /**
  * DevDay Core Application Framework
- * Handles CSRF, Fetch wrappers, Toasts, Modals, and Keyboard Shortcuts
+ * Handles CSRF, Fetch wrappers, Toasts, Modals, Profile Dropdown, and Keyboard Shortcuts
  */
 
 (function () {
@@ -29,7 +29,7 @@
                 } catch (e) {
                     console.error(`[DevDay Raw Server Response] ${url}:`, text);
                     const cleanText = text.replace(/<[^>]*>?/gm, ' ').trim();
-                    throw new Error(cleanText && cleanText.length < 150 ? cleanText : `Server returned non-JSON error (${response.status}).`);
+                    throw new Error(cleanText && cleanText.length < 150 ? cleanText : `Server returned an unexpected response (${response.status}).`);
                 }
 
                 if (!response.ok || !data.success) {
@@ -47,29 +47,27 @@
             }
         },
 
-        // Toast notifications
+        // Paper Toast notifications
         showToast(message, type = 'info', duration = 3500) {
             const container = document.getElementById('toast-container');
             if (!container) return;
 
             const toast = document.createElement('div');
-            toast.className = `toast-item flex items-center gap-2.5 px-4 py-3 rounded-xl border text-xs font-medium shadow-2xl backdrop-blur-md transition-all`;
-
-            let bgClass = 'bg-[#111726]/95 border-slate-700 text-white';
+            let typeClass = 'toast-info';
             let icon = 'info';
 
             if (type === 'success') {
-                bgClass = 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200';
+                typeClass = 'toast-success';
                 icon = 'check-circle';
             } else if (type === 'error') {
-                bgClass = 'bg-rose-950/90 border-rose-500/40 text-rose-200';
+                typeClass = 'toast-error';
                 icon = 'alert-circle';
             } else if (type === 'warning') {
-                bgClass = 'bg-amber-950/90 border-amber-500/40 text-amber-200';
+                typeClass = 'toast-info';
                 icon = 'alert-triangle';
             }
 
-            toast.className += ` ${bgClass}`;
+            toast.className = `toast-item ${typeClass}`;
             toast.innerHTML = `
                 <i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i>
                 <span class="flex-1">${message}</span>
@@ -80,9 +78,39 @@
 
             setTimeout(() => {
                 toast.style.opacity = '0';
-                toast.style.transform = 'translateY(10px)';
-                setTimeout(() => toast.remove(), 250);
+                toast.style.transform = 'translateY(12px)';
+                setTimeout(() => toast.remove(), 200);
             }, duration);
+        },
+
+        // Profile Dropdown Toggle & State Management
+        toggleProfileMenu(e) {
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            const menu = document.getElementById('profile-dropdown-menu');
+            const btn = document.getElementById('profile-toggle-btn');
+            if (!menu) return;
+
+            const isShown = menu.classList.contains('show');
+            if (isShown) {
+                menu.classList.remove('show');
+                if (btn) btn.setAttribute('aria-expanded', 'false');
+            } else {
+                menu.classList.add('show');
+                if (btn) btn.setAttribute('aria-expanded', 'true');
+            }
+            if (window.lucide) lucide.createIcons();
+        },
+
+        closeProfileMenu() {
+            const menu = document.getElementById('profile-dropdown-menu');
+            const btn = document.getElementById('profile-toggle-btn');
+            if (menu && menu.classList.contains('show')) {
+                menu.classList.remove('show');
+                if (btn) btn.setAttribute('aria-expanded', 'false');
+            }
         },
 
         // Modal helpers
@@ -105,15 +133,24 @@
             const form = document.getElementById('assignment-form');
             if (form) form.reset();
             
-            document.getElementById('assignment-modal-title').textContent = 'Create Daily Assignment';
-            document.getElementById('assignment-id').value = '';
-            document.getElementById('assignment-submit-btn').textContent = 'Create Assignment';
+            const titleEl = document.getElementById('assignment-modal-title');
+            if (titleEl) titleEl.textContent = 'Add Daily Assignment';
+            
+            const idEl = document.getElementById('assignment-id');
+            if (idEl) idEl.value = '';
+            
+            const submitBtn = document.getElementById('assignment-submit-btn');
+            if (submitBtn) submitBtn.textContent = 'Add Task';
 
-            if (preset.category) document.getElementById('assign-category').value = preset.category;
-            if (preset.project_id) document.getElementById('assign-project').value = preset.project_id;
+            if (preset.category && document.getElementById('assign-category')) {
+                document.getElementById('assign-category').value = preset.category;
+            }
+            if (preset.project_id && document.getElementById('assign-project')) {
+                document.getElementById('assign-project').value = preset.project_id;
+            }
 
             this.openModal('assignment-modal');
-            setTimeout(() => document.getElementById('assign-title')?.focus(), 50);
+            setTimeout(() => document.getElementById('assign-title')?.focus(), 60);
         },
 
         formatMinutes(minutes) {
@@ -134,8 +171,25 @@
         }
     };
 
-    // Keyboard Shortcuts (N = new task, Esc = close modal)
+    // Global Click Listener for Dropdown Dismissal
+    document.addEventListener('click', (e) => {
+        const container = document.getElementById('profile-container');
+        if (container && !container.contains(e.target)) {
+            window.DevDayUI.closeProfileMenu();
+        }
+    });
+
+    // Global Keyboard Shortcuts (N = new task, Esc = close modal / close dropdown)
     document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            window.DevDayUI.closeProfileMenu();
+            // Close any open dialogs if open
+            document.querySelectorAll('dialog[open]').forEach(dialog => {
+                dialog.close();
+            });
+            return;
+        }
+
         // If user is typing in an input or textarea, don't trigger global shortcuts
         const tag = e.target.tagName.toLowerCase();
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) {

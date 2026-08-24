@@ -1,61 +1,76 @@
 /**
- * DevDay Productivity Insights & Visualizations
+ * DevDay Insights Controller
+ * Anti-Digital Paper Edition: Chart.js configurations with earthy ink & paper palettes
  */
 
 (function () {
-    let focusChartInstance = null;
-    let completedChartInstance = null;
-    let categoryChartInstance = null;
+    let chartInstances = {};
 
     window.DevDayInsights = {
         async init() {
-            await this.loadInsights();
+            await this.loadData();
         },
 
-        async loadInsights() {
+        async loadData() {
             try {
-                const response = await window.DevDayUI.request('/api/insights.php');
+                const response = await window.DevDayUI.request('/api/insights.php?action=summary');
                 const data = response.data;
-
-                this.renderSummary(data.summary);
-                this.renderCharts(data.charts);
+                this.renderMetrics(data.metrics);
+                this.renderCharts(data);
             } catch (err) {
-                window.DevDayUI.showToast('Failed to load insights data.', 'error');
+                window.DevDayUI.showToast('Failed to load insights: ' + err.message, 'error');
             }
         },
 
-        renderSummary(summary) {
-            if (!summary) return;
+        renderMetrics(metrics) {
+            if (!metrics) return;
 
-            document.getElementById('insight-tasks-completed').textContent = summary.tasks_completed;
-            document.getElementById('insight-focus-time').textContent = summary.total_focus_formatted;
-            document.getElementById('insight-avg-day').textContent = summary.avg_daily_formatted;
-            document.getElementById('insight-completion-rate').textContent = `${Math.round(summary.completion_rate)}%`;
+            document.getElementById('insight-tasks-completed').textContent = metrics.tasks_completed_week || 0;
+            document.getElementById('insight-focus-time').textContent = window.DevDayUI.formatMinutes(metrics.focus_minutes_week || 0);
+            document.getElementById('insight-avg-day').textContent = window.DevDayUI.formatMinutes(Math.round((metrics.focus_minutes_week || 0) / 7));
+            document.getElementById('insight-completion-rate').textContent = `${Math.round(metrics.completion_rate || 0)}%`;
         },
 
-        renderCharts(charts) {
-            if (!charts || !window.Chart) return;
+        renderCharts(data) {
+            // Earthy Ink Palette
+            const inkColors = {
+                brown: '#8B4513',
+                green: '#2D5A43',
+                beige: '#C4A77D',
+                amber: '#9A6218',
+                red: '#B33927',
+                ink: '#1A1A1A',
+                pencil: '#4A4A4A',
+                grid: '#E2D9CB',
+                canvas: '#FAFAF8'
+            };
 
-            // Common dark chart theme options
-            const chartFont = { family: 'Inter', size: 11 };
-            const gridColor = 'rgba(255, 255, 255, 0.05)';
-            const tickColor = '#94a3b8';
+            const chartFont = {
+                family: "'JetBrains Mono', monospace",
+                size: 11
+            };
 
-            // 1. Focus Time by Day (Hours)
-            const ctxFocus = document.getElementById('chart-focus-day')?.getContext('2d');
-            if (ctxFocus) {
-                if (focusChartInstance) focusChartInstance.destroy();
-                focusChartInstance = new Chart(ctxFocus, {
+            // Destroy previous charts if reloaded
+            Object.values(chartInstances).forEach(c => c.destroy());
+            chartInstances = {};
+
+            // 1. Focus Time by Day (Bar Chart)
+            const ctx1 = document.getElementById('chart-focus-days')?.getContext('2d');
+            if (ctx1 && data.daily_focus) {
+                const labels = data.daily_focus.map(d => d.date_label || d.date);
+                const values = data.daily_focus.map(d => (parseFloat(d.minutes || 0) / 60).toFixed(1));
+
+                chartInstances.focusDays = new Chart(ctx1, {
                     type: 'bar',
                     data: {
-                        labels: charts.days,
+                        labels: labels,
                         datasets: [{
                             label: 'Focus Hours',
-                            data: charts.focus_hours_by_day,
-                            backgroundColor: 'rgba(56, 189, 248, 0.75)',
-                            borderColor: '#38bdf8',
-                            borderWidth: 1,
-                            borderRadius: 6,
+                            data: values,
+                            backgroundColor: inkColors.brown,
+                            borderColor: inkColors.ink,
+                            borderWidth: 1.5,
+                            borderRadius: 2
                         }]
                     },
                     options: {
@@ -64,71 +79,95 @@
                         plugins: {
                             legend: { display: false },
                             tooltip: {
+                                backgroundColor: inkColors.ink,
+                                titleFont: chartFont,
+                                bodyFont: chartFont,
+                                padding: 8,
                                 callbacks: {
-                                    label: (ctx) => `${ctx.parsed.y} hours (${Math.round(ctx.parsed.y * 60)} min)`
+                                    label: (ctx) => `${ctx.raw} hours focused`
                                 }
                             }
                         },
                         scales: {
-                            x: { grid: { color: gridColor }, ticks: { color: tickColor, font: chartFont } },
-                            y: { grid: { color: gridColor }, ticks: { color: tickColor, font: chartFont }, beginAtZero: true }
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: chartFont, color: inkColors.pencil }
+                            },
+                            y: {
+                                grid: { color: inkColors.grid },
+                                ticks: { font: chartFont, color: inkColors.pencil, stepSize: 1 }
+                            }
                         }
                     }
                 });
             }
 
-            // 2. Tasks Completed by Day
-            const ctxComp = document.getElementById('chart-tasks-day')?.getContext('2d');
-            if (ctxComp) {
-                if (completedChartInstance) completedChartInstance.destroy();
-                completedChartInstance = new Chart(ctxComp, {
+            // 2. Tasks Completed by Day (Line Chart)
+            const ctx2 = document.getElementById('chart-tasks-days')?.getContext('2d');
+            if (ctx2 && data.daily_tasks) {
+                const labels = data.daily_tasks.map(d => d.date_label || d.date);
+                const values = data.daily_tasks.map(d => parseInt(d.completed_count || 0));
+
+                chartInstances.tasksDays = new Chart(ctx2, {
                     type: 'line',
                     data: {
-                        labels: charts.days,
+                        labels: labels,
                         datasets: [{
-                            label: 'Tasks Completed',
-                            data: charts.completed_by_day,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            label: 'Tasks Done',
+                            data: values,
+                            borderColor: inkColors.green,
+                            backgroundColor: 'rgba(45, 90, 67, 0.1)',
+                            borderWidth: 2.5,
                             fill: true,
-                            tension: 0.35,
-                            pointBackgroundColor: '#10b981',
-                            pointRadius: 4,
+                            tension: 0.2,
+                            pointBackgroundColor: inkColors.green,
+                            pointBorderColor: inkColors.ink,
+                            pointRadius: 4
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: { display: false }
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: inkColors.ink,
+                                titleFont: chartFont,
+                                bodyFont: chartFont,
+                                padding: 8
+                            }
                         },
                         scales: {
-                            x: { grid: { color: gridColor }, ticks: { color: tickColor, font: chartFont } },
-                            y: { 
-                                grid: { color: gridColor }, 
-                                ticks: { color: tickColor, font: chartFont, stepSize: 1 },
-                                beginAtZero: true 
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: chartFont, color: inkColors.pencil }
+                            },
+                            y: {
+                                grid: { color: inkColors.grid },
+                                ticks: { font: chartFont, color: inkColors.pencil, stepSize: 1 }
                             }
                         }
                     }
                 });
             }
 
-            // 3. Category Distribution
-            const ctxCat = document.getElementById('chart-category-dist')?.getContext('2d');
-            if (ctxCat) {
-                if (categoryChartInstance) categoryChartInstance.destroy();
+            // 3. Time Allocation by Category (Doughnut Chart)
+            const ctx3 = document.getElementById('chart-category-time')?.getContext('2d');
+            if (ctx3 && data.category_distribution) {
+                const labels = data.category_distribution.map(d => d.category);
+                const values = data.category_distribution.map(d => parseInt(d.minutes || 0));
 
-                const colors = ['#6366f1', '#ec4899', '#38bdf8', '#10b981', '#f59e0b', '#a855f7', '#94a3b8'];
+                const colorPalette = [inkColors.brown, inkColors.green, inkColors.amber, inkColors.beige, inkColors.red, '#5C2D0C', '#1E4A35'];
 
-                categoryChartInstance = new Chart(ctxCat, {
+                chartInstances.categoryTime = new Chart(ctx3, {
                     type: 'doughnut',
                     data: {
-                        labels: charts.category_labels.length ? charts.category_labels : ['No Categories'],
+                        labels: labels,
                         datasets: [{
-                            data: charts.category_counts.length ? charts.category_counts : [1],
-                            backgroundColor: colors.slice(0, Math.max(1, charts.category_labels.length)),
-                            borderWidth: 0,
+                            data: values,
+                            backgroundColor: colorPalette.slice(0, labels.length),
+                            borderColor: inkColors.ink,
+                            borderWidth: 1.5
                         }]
                     },
                     options: {
@@ -137,10 +176,57 @@
                         plugins: {
                             legend: {
                                 position: 'bottom',
-                                labels: { color: tickColor, font: chartFont, boxWidth: 12, padding: 14 }
+                                labels: { font: chartFont, color: inkColors.ink, padding: 12 }
+                            },
+                            tooltip: {
+                                backgroundColor: inkColors.ink,
+                                titleFont: chartFont,
+                                bodyFont: chartFont,
+                                callbacks: {
+                                    label: (ctx) => ` ${ctx.label}: ${window.DevDayUI.formatMinutes(ctx.raw)}`
+                                }
                             }
-                        },
-                        cutout: '72%'
+                        }
+                    }
+                });
+            }
+
+            // 4. Time Allocation by Project (Doughnut Chart)
+            const ctx4 = document.getElementById('chart-project-time')?.getContext('2d');
+            if (ctx4 && data.project_distribution) {
+                const labels = data.project_distribution.map(d => d.project_name || 'General Tasks');
+                const values = data.project_distribution.map(d => parseInt(d.minutes || 0));
+
+                const colorPalette = [inkColors.green, inkColors.brown, inkColors.beige, inkColors.amber, inkColors.red, '#4A5568'];
+
+                chartInstances.projectTime = new Chart(ctx4, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colorPalette.slice(0, labels.length),
+                            borderColor: inkColors.ink,
+                            borderWidth: 1.5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { font: chartFont, color: inkColors.ink, padding: 12 }
+                            },
+                            tooltip: {
+                                backgroundColor: inkColors.ink,
+                                titleFont: chartFont,
+                                bodyFont: chartFont,
+                                callbacks: {
+                                    label: (ctx) => ` ${ctx.label}: ${window.DevDayUI.formatMinutes(ctx.raw)}`
+                                }
+                            }
+                        }
                     }
                 });
             }

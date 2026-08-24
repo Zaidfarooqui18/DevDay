@@ -1,112 +1,114 @@
 /**
- * DevDay Projects Manager
+ * DevDay Projects Controller
+ * Anti-Digital Paper Edition: Project Cards, Progress Meters, and CRUD operations
  */
 
 (function () {
+    let projectsList = [];
+
     window.DevDayProjects = {
         async init() {
             await this.loadProjects();
         },
 
         async loadProjects() {
+            const grid = document.getElementById('projects-grid');
+            if (!grid) return;
+
             try {
                 const response = await window.DevDayUI.request('/api/projects.php?action=list');
-                this.renderProjects(response.data || []);
+                projectsList = response.data || [];
+                this.renderGrid(projectsList);
             } catch (err) {
-                window.DevDayUI.showToast('Failed to load projects.', 'error');
+                grid.innerHTML = `<div class="p-8 text-center text-stamp-red text-xs font-mono col-span-full">Failed to load projects: ${err.message}</div>`;
             }
         },
 
-        renderProjects(projects) {
+        renderGrid(projects) {
             const grid = document.getElementById('projects-grid');
             if (!grid) return;
 
             if (projects.length === 0) {
                 grid.innerHTML = `
-                    <div class="col-span-full p-12 text-center rounded-2xl bg-[#111726]/60 border border-slate-800 space-y-3">
-                        <div class="w-12 h-12 rounded-2xl bg-indigo-950/50 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
-                            <i data-lucide="folder-plus" class="w-6 h-6"></i>
-                        </div>
-                        <h4 class="text-sm font-bold text-white">No projects created yet</h4>
-                        <p class="text-xs text-slate-400 max-w-sm mx-auto">Organize your assignments and repository links by creating projects.</p>
-                        <button onclick="window.DevDayProjects.openModal()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all">
-                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                            <span>Create Project</span>
+                    <div class="p-8 text-center paper-card bg-paper-warm space-y-2 col-span-full">
+                        <div class="font-hand font-bold text-2xl text-ink">no projects yet.</div>
+                        <p class="text-xs text-ink-pencil max-w-sm mx-auto">Create a project to group your assignments, repositories, and development focus.</p>
+                        <button onclick="window.DevDayProjects.openModal()" class="sketch-btn sketch-btn-primary sketch-btn-sm inline-flex mt-2">
+                            <span>+ new project</span>
                         </button>
                     </div>
                 `;
-                if (window.lucide) lucide.createIcons();
                 return;
             }
 
             let html = '';
-            projects.forEach(p => {
-                const total = p.total_assignments || 0;
-                const done = p.completed_assignments || 0;
-                const minutes = p.total_minutes_spent || 0;
-                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            projects.forEach((p, idx) => {
+                const total = parseInt(p.total_tasks || 0);
+                const completed = parseInt(p.completed_tasks || 0);
+                const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+                const totalMinutes = parseInt(p.total_minutes || 0);
 
-                // Status badge
                 let statusBadge = '';
                 if (p.status === 'Active') {
-                    statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active</span>';
+                    statusBadge = '<span class="stamp stamp-green">active</span>';
                 } else if (p.status === 'Planning') {
-                    statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-500/30">Planning</span>';
-                } else if (p.status === 'Completed') {
-                    statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-500/30">Completed</span>';
+                    statusBadge = '<span class="stamp stamp-amber">planning</span>';
+                } else if (p.status === 'Paused') {
+                    statusBadge = '<span class="stamp stamp-red">paused</span>';
                 } else {
-                    statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">Paused</span>';
+                    statusBadge = '<span class="stamp stamp-neutral">completed</span>';
                 }
 
                 html += `
-                    <div class="group p-5 rounded-2xl bg-[#111726] border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between space-y-4">
-                        <div class="space-y-3">
-                            <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <h3 class="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">${p.name}</h3>
-                                    ${p.technologies ? `<p class="text-[11px] text-indigo-400 font-mono mt-0.5">${p.technologies}</p>` : ''}
-                                </div>
+                    <div class="paper-card p-5 bg-paper flex flex-col justify-between space-y-4">
+                        <div class="space-y-2.5">
+                            <div class="flex items-center justify-between gap-2">
                                 ${statusBadge}
+                                <div class="flex items-center gap-1">
+                                    <button onclick="window.DevDayProjects.openModal(${p.id})" class="p-1 rounded hover:bg-paper-warm text-ink-pencil hover:text-ink text-xs font-bold" title="Edit project">
+                                        ✎
+                                    </button>
+                                    <button onclick="window.DevDayProjects.deleteProject(${p.id}, '${encodeURIComponent(p.name)}')" class="p-1 rounded hover:bg-[#FDF1EF] text-stamp-red text-xs font-bold" title="Delete project">
+                                        ✕
+                                    </button>
+                                </div>
                             </div>
 
-                            <p class="text-xs text-slate-400 leading-relaxed line-clamp-2">${p.description || 'No description provided.'}</p>
+                            <div>
+                                <h3 class="text-base font-bold text-ink leading-snug">${p.name}</h3>
+                                <p class="text-xs text-ink-pencil mt-1 leading-relaxed line-clamp-2">${p.description || 'No description provided.'}</p>
+                            </div>
+
+                            ${p.technologies ? `
+                                <div class="flex items-center gap-1.5 flex-wrap text-[11px] font-mono text-ink-brown">
+                                    <span>tech:</span>
+                                    <span class="bg-paper-warm px-1.5 py-0.5 rounded border border-[#D4C4A8] text-ink">${p.technologies}</span>
+                                </div>
+                            ` : ''}
                         </div>
 
-                        <div class="space-y-3 pt-3 border-t border-slate-800/80">
-                            <!-- Progress Bar -->
-                            <div>
-                                <div class="flex items-center justify-between text-[11px] font-medium text-slate-400 mb-1">
-                                    <span>${done}/${total} tasks done</span>
-                                    <span class="font-mono text-slate-300">${pct}% &bull; ${window.DevDayUI.formatMinutes(minutes)}</span>
-                                </div>
-                                <div class="w-full bg-[#090d16] rounded-full h-1.5 overflow-hidden border border-slate-800">
-                                    <div class="bg-gradient-to-r from-indigo-500 to-cyan-400 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                                </div>
+                        <!-- Metrics & Links Strip -->
+                        <div class="space-y-3 pt-3 border-t-2 border-dashed border-[#D4C4A8]">
+                            <div class="flex items-center justify-between text-xs font-mono">
+                                <span>${completed}/${total} tasks (${percentage}%)</span>
+                                <span class="font-bold text-ink-brown">${window.DevDayUI.formatMinutes(totalMinutes)}</span>
                             </div>
 
-                            <!-- Links & Actions -->
+                            <!-- Progress Bar -->
+                            <div class="w-full bg-paper-warm border border-ink h-2 rounded overflow-hidden">
+                                <div class="bg-[#2D5A43] h-full" style="width: ${percentage}%"></div>
+                            </div>
+
+                            <!-- Links & Quick Add -->
                             <div class="flex items-center justify-between pt-1">
-                                <div class="flex items-center gap-2">
-                                    ${p.github_url ? `
-                                        <a href="${p.github_url}" target="_blank" rel="noopener noreferrer" class="p-1.5 rounded-lg bg-[#090d16] hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="GitHub Repository">
-                                            <i data-lucide="github" class="w-4 h-4"></i>
-                                        </a>
-                                    ` : ''}
-                                    ${p.live_url ? `
-                                        <a href="${p.live_url}" target="_blank" rel="noopener noreferrer" class="p-1.5 rounded-lg bg-[#090d16] hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Live Preview">
-                                            <i data-lucide="external-link" class="w-4 h-4"></i>
-                                        </a>
-                                    ` : ''}
+                                <div class="flex items-center gap-2 text-xs">
+                                    ${p.github_url ? `<a href="${p.github_url}" target="_blank" rel="noreferrer" class="font-bold text-ink-brown hover:underline font-mono text-[11px]">github &rarr;</a>` : ''}
+                                    ${p.live_url ? `<a href="${p.live_url}" target="_blank" rel="noreferrer" class="font-bold text-stamp-green hover:underline font-mono text-[11px]">live &rarr;</a>` : ''}
                                 </div>
 
-                                <div class="flex items-center gap-1.5">
-                                    <button onclick="window.DevDayProjects.editProject(${p.id})" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5" title="Edit Project">
-                                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                                    </button>
-                                    <button onclick="window.DevDayProjects.deleteProject(${p.id}, '${p.name.replace(/'/g, "\\'")}')" class="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950/30" title="Delete Project">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
+                                <button onclick="window.DevDayUI.openAddAssignmentModal({ project_id: ${p.id} })" class="sketch-btn sketch-btn-sm" title="Add task to this project">
+                                    <span>+ task</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -114,42 +116,33 @@
             });
 
             grid.innerHTML = html;
-            if (window.lucide) lucide.createIcons();
         },
 
-        openModal(preset = {}) {
-            document.getElementById('project-modal-title').textContent = 'Create Project';
-            document.getElementById('project-id').value = '';
-            document.getElementById('proj-name').value = preset.name || '';
-            document.getElementById('proj-desc').value = preset.description || '';
-            document.getElementById('proj-tech').value = preset.technologies || '';
-            document.getElementById('proj-github').value = preset.github_url || '';
-            document.getElementById('proj-live').value = preset.live_url || '';
-            document.getElementById('proj-status').value = preset.status || 'Active';
-            document.getElementById('project-submit-btn').textContent = 'Save Project';
+        openModal(id = null) {
+            const form = document.querySelector('#project-modal form');
+            if (form) form.reset();
+
+            const titleEl = document.getElementById('project-modal-title');
+            const idEl = document.getElementById('project-id');
+
+            if (id) {
+                const p = projectsList.find(item => parseInt(item.id) === parseInt(id));
+                if (p) {
+                    if (titleEl) titleEl.textContent = 'Edit Project';
+                    if (idEl) idEl.value = p.id;
+                    document.getElementById('proj-name').value = p.name || '';
+                    document.getElementById('proj-desc').value = p.description || '';
+                    document.getElementById('proj-status').value = p.status || 'Active';
+                    document.getElementById('proj-tech').value = p.technologies || '';
+                    document.getElementById('proj-github').value = p.github_url || '';
+                    document.getElementById('proj-live').value = p.live_url || '';
+                }
+            } else {
+                if (titleEl) titleEl.textContent = 'New Project';
+                if (idEl) idEl.value = '';
+            }
 
             window.DevDayUI.openModal('project-modal');
-        },
-
-        async editProject(id) {
-            try {
-                const response = await window.DevDayUI.request(`/api/projects.php?action=detail&id=${id}`);
-                const p = response.data;
-
-                document.getElementById('project-modal-title').textContent = 'Edit Project';
-                document.getElementById('project-id').value = p.id;
-                document.getElementById('proj-name').value = p.name || '';
-                document.getElementById('proj-desc').value = p.description || '';
-                document.getElementById('proj-tech').value = p.technologies || '';
-                document.getElementById('proj-github').value = p.github_url || '';
-                document.getElementById('proj-live').value = p.live_url || '';
-                document.getElementById('proj-status').value = p.status || 'Active';
-                document.getElementById('project-submit-btn').textContent = 'Save Changes';
-
-                window.DevDayUI.openModal('project-modal');
-            } catch (err) {
-                window.DevDayUI.showToast('Failed to load project details.', 'error');
-            }
         },
 
         async saveProject(e) {
@@ -158,18 +151,23 @@
             const submitBtn = document.getElementById('project-submit-btn');
 
             const payload = {
-                name: document.getElementById('proj-name').value,
-                description: document.getElementById('proj-desc').value,
-                technologies: document.getElementById('proj-tech').value,
-                github_url: document.getElementById('proj-github').value,
-                live_url: document.getElementById('proj-live').value,
+                name: document.getElementById('proj-name').value.trim(),
+                description: document.getElementById('proj-desc').value.trim(),
                 status: document.getElementById('proj-status').value,
+                technologies: document.getElementById('proj-tech').value.trim(),
+                github_url: document.getElementById('proj-github').value.trim(),
+                live_url: document.getElementById('proj-live').value.trim(),
             };
+
+            if (!payload.name) {
+                window.DevDayUI.showToast('Please provide a project name.', 'error');
+                return;
+            }
 
             if (id) payload.id = id;
 
             try {
-                submitBtn.disabled = true;
+                if (submitBtn) submitBtn.disabled = true;
                 const action = id ? 'update' : 'create';
                 await window.DevDayUI.request(`/api/projects.php?action=${action}`, {
                     method: 'POST',
@@ -180,14 +178,17 @@
                 window.DevDayUI.closeModal('project-modal');
                 this.loadProjects();
             } catch (err) {
-                window.DevDayUI.showToast(err.message || 'Error saving project.', 'error');
+                window.DevDayUI.showToast(err.message || 'Failed to save project.', 'error');
             } finally {
-                submitBtn.disabled = false;
+                if (submitBtn) submitBtn.disabled = false;
             }
         },
 
-        async deleteProject(id, name) {
-            if (!confirm(`Are you sure you want to delete project "${name}"? Linked assignments will remain general tasks.`)) return;
+        async deleteProject(id, encodedName) {
+            const name = decodeURIComponent(encodedName);
+            if (!confirm(`Are you sure you want to delete project "${name}"? Existing tasks will be unlinked but kept.`)) {
+                return;
+            }
 
             try {
                 await window.DevDayUI.request('/api/projects.php?action=delete', {

@@ -1,89 +1,84 @@
 /**
- * DevDay Historical Reports Controller
+ * DevDay Reports History Controller
+ * Anti-Digital Paper Edition: Historical reports table, snapshot viewer, and resend workflows
  */
 
 (function () {
-    let currentSelectedReport = null;
+    let reportsList = [];
 
     window.DevDayReportsHistory = {
         async init() {
-            await this.loadHistory();
+            await this.loadReports();
         },
 
-        async loadHistory() {
+        async loadReports() {
+            const tbody = document.getElementById('reports-table-body');
+            if (!tbody) return;
+
             try {
                 const response = await window.DevDayUI.request('/api/reports.php?action=history');
-                this.renderHistory(response.data || []);
+                reportsList = response.data || [];
+                this.renderTable(reportsList);
             } catch (err) {
-                window.DevDayUI.showToast('Failed to load report history.', 'error');
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-stamp-red font-mono text-xs">Failed to load reports: ${err.message}</td></tr>`;
             }
         },
 
-        renderHistory(reports) {
+        renderTable(reports) {
             const tbody = document.getElementById('reports-table-body');
             if (!tbody) return;
 
             if (reports.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="p-12 text-center text-slate-400">
-                            <div class="w-12 h-12 rounded-2xl bg-indigo-950/50 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-3">
-                                <i data-lucide="mail-search" class="w-6 h-6"></i>
-                            </div>
-                            <h4 class="text-sm font-bold text-white mb-1">No reports submitted yet</h4>
-                            <p class="text-xs text-slate-500 max-w-sm mx-auto">Your generated daily reports and email history snapshots will appear here.</p>
+                        <td colspan="6" class="p-8 text-center text-ink-muted">
+                            <div class="font-hand font-bold text-xl text-ink">no reports archived yet.</div>
+                            <p class="text-xs text-ink-pencil mt-1">Generate your first daily report on the Today page to see it logged here.</p>
                         </td>
                     </tr>
                 `;
-                if (window.lucide) lucide.createIcons();
                 return;
             }
 
             let html = '';
-            reports.forEach(r => {
-                const dateObj = new Date(r.report_date + 'T00:00:00');
-                const dateFormatted = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-                const timeFormatted = r.sent_at ? new Date(r.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-';
+            reports.forEach((r, idx) => {
+                const isSent = r.status === 'SENT';
+                const isFailed = r.status === 'FAILED';
 
                 let statusBadge = '';
-                if (r.status === 'SENT') {
-                    statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 inline-flex"><i data-lucide="check" class="w-3 h-3"></i> Sent</span>';
-                } else if (r.status === 'FAILED') {
-                    statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-500/30 flex items-center gap-1 inline-flex"><i data-lucide="alert-circle" class="w-3 h-3"></i> Failed</span>';
+                if (isSent) {
+                    statusBadge = '<span class="stamp stamp-green">sent</span>';
+                } else if (isFailed) {
+                    statusBadge = '<span class="stamp stamp-red" title="' + (r.error_message || '') + '">failed</span>';
                 } else {
-                    statusBadge = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1 inline-flex">Draft</span>';
+                    statusBadge = '<span class="stamp stamp-neutral">draft</span>';
                 }
 
+                const total = parseInt(r.total_tasks || 0);
+                const completed = parseInt(r.completed_tasks || 0);
+                const percent = Math.round(parseFloat(r.completion_percentage || 0));
+
                 html += `
-                    <tr class="border-b border-slate-800/60 hover:bg-white/[0.02] transition-colors text-xs">
-                        <td class="py-3.5 px-4 font-semibold text-white">
-                            <div class="flex items-center gap-2">
-                                <i data-lucide="calendar" class="w-4 h-4 text-indigo-400"></i>
-                                <span>${dateFormatted}</span>
-                            </div>
-                        </td>
-                        <td class="py-3.5 px-4 text-slate-300 font-mono">
-                            <div class="flex items-center gap-2">
-                                <span>${Math.round(r.completion_percentage)}%</span>
-                                <span class="text-slate-500">(${r.completed_tasks}/${r.total_tasks})</span>
-                            </div>
-                        </td>
-                        <td class="py-3.5 px-4 font-mono text-cyan-400 font-medium">
-                            ${window.DevDayUI.formatMinutes(r.focus_minutes)}
-                        </td>
-                        <td class="py-3.5 px-4 text-slate-300 truncate max-w-[160px]" title="${r.recipient_email}">
-                            ${r.recipient_email}
-                        </td>
+                    <tr class="border-b border-[#E2D9CB] hover:bg-paper-warm transition-colors ${idx % 2 === 1 ? 'bg-paper-warm/40' : 'bg-paper'}">
+                        <td class="py-3.5 px-4 font-mono font-bold text-ink">${r.report_date}</td>
                         <td class="py-3.5 px-4">
-                            ${statusBadge}
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono">${completed}/${total} (${percent}%)</span>
+                                <div class="w-16 bg-paper border border-ink h-1.5 rounded overflow-hidden">
+                                    <div class="bg-[#2D5A43] h-full" style="width: ${percent}%"></div>
+                                </div>
+                            </div>
                         </td>
+                        <td class="py-3.5 px-4 font-mono font-bold text-ink-brown">${window.DevDayUI.formatMinutes(r.focus_minutes)}</td>
+                        <td class="py-3.5 px-4 font-mono text-ink-pencil text-[11px]">${r.recipient_email}</td>
+                        <td class="py-3.5 px-4">${statusBadge}</td>
                         <td class="py-3.5 px-4 text-right">
-                            <div class="flex items-center justify-end gap-2">
-                                <button onclick="window.DevDayReportsHistory.viewReportSnapshot(${r.id})" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 text-[11px] font-medium transition-colors">
-                                    View
+                            <div class="inline-flex items-center gap-1.5">
+                                <button onclick="window.DevDayReportsHistory.viewSnapshot(${r.id})" class="sketch-btn sketch-btn-sm" title="View Snapshot">
+                                    <span>view</span>
                                 </button>
-                                <button onclick="window.DevDayReportsHistory.promptResend(${r.id})" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-[11px] font-medium transition-colors">
-                                    Resend
+                                <button onclick="window.DevDayReportsHistory.resendReport(${r.id})" class="sketch-btn sketch-btn-sm sketch-btn-brown" title="Resend Report Email">
+                                    <span>resend</span>
                                 </button>
                             </div>
                         </td>
@@ -92,43 +87,55 @@
             });
 
             tbody.innerHTML = html;
-            if (window.lucide) lucide.createIcons();
         },
 
-        async viewReportSnapshot(id) {
+        async viewSnapshot(id) {
             try {
                 const response = await window.DevDayUI.request(`/api/reports.php?action=view&id=${id}`);
                 const r = response.data;
-                currentSelectedReport = r;
 
-                const iframe = document.getElementById('history-report-iframe');
+                document.getElementById('view-report-modal-title').textContent = `Report: ${r.report_date}`;
+                document.getElementById('view-report-modal-subtitle').textContent = `To: ${r.recipient_email} · Status: ${r.status}`;
+                document.getElementById('view-report-status').textContent = `Logged on: ${r.created_at}`;
+
+                const iframe = document.getElementById('view-report-iframe');
                 if (iframe) {
-                    iframe.srcdoc = r.html_content;
+                    const doc = iframe.contentWindow.document;
+                    doc.open();
+                    doc.write(r.html_content);
+                    doc.close();
                 }
 
-                document.getElementById('history-report-title').textContent = `Report Archive: ${r.report_date}`;
-                document.getElementById('history-report-meta').textContent = `To: ${r.recipient_email} | Subject: ${r.email_subject}`;
+                const resendBtn = document.getElementById('view-report-resend-btn');
+                if (resendBtn) {
+                    resendBtn.onclick = () => this.resendReport(id);
+                }
 
-                window.DevDayUI.openModal('history-viewer-modal');
+                window.DevDayUI.openModal('view-report-modal');
             } catch (err) {
-                window.DevDayUI.showToast('Failed to load stored report snapshot.', 'error');
+                window.DevDayUI.showToast(err.message || 'Failed to load report snapshot.', 'error');
             }
         },
 
-        async promptResend(id) {
-            if (!confirm('Resend this exact report snapshot to the configured recipient?')) return;
+        async resendReport(id) {
+            const report = reportsList.find(item => parseInt(item.id) === parseInt(id));
+            const promptEmail = prompt('Confirm recipient manager email:', report ? report.recipient_email : '');
+            if (!promptEmail) return;
 
             try {
-                window.DevDayUI.showToast('Resending report snapshot...', 'info');
+                window.DevDayUI.showToast('Handing report to mail server...', 'info');
                 const response = await window.DevDayUI.request('/api/reports.php?action=resend', {
                     method: 'POST',
-                    body: { id }
+                    body: {
+                        id: id,
+                        recipient_email: promptEmail
+                    }
                 });
 
-                window.DevDayUI.showToast(response.message || 'Report resent successfully!', 'success');
-                this.loadHistory();
+                window.DevDayUI.showToast(response.message || 'Report handed to the mail server.', 'success');
+                this.loadReports();
             } catch (err) {
-                window.DevDayUI.showToast(err.message || 'Failed to resend report.', 'error');
+                window.DevDayUI.showToast(err.message || "Couldn't send the report. Please check your email configuration.", 'error');
             }
         }
     };
