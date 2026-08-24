@@ -99,9 +99,12 @@ class AuthService
     {
         $secret = (string)Env::get('APP_SECRET', 'devday_default_secret_key_88921');
         $payload = json_encode([
-            'id'    => (int)$user['id'],
-            'email' => $user['email'],
-            'exp'   => time() + (86400 * 30), // 30 days
+            'id'            => (int)$user['id'],
+            'name'          => $user['name'] ?? 'Developer',
+            'email'         => strtolower(trim($user['email'])),
+            'manager_name'  => $user['manager_name'] ?? null,
+            'manager_email' => $user['manager_email'] ?? null,
+            'exp'           => time() + (86400 * 30), // 30 days
         ]);
         $encodedPayload = base64_encode($payload);
         $signature = hash_hmac('sha256', $encodedPayload, $secret);

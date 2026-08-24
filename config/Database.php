@@ -44,6 +44,12 @@ class Database
                 
                 if ($isServerless) {
                     $sqlitePath = '/tmp/devday.sqlite';
+                    $baseDb = dirname(__DIR__) . '/database/devday.sqlite';
+                    if (!file_exists($sqlitePath) && file_exists($baseDb)) {
+                        $dir = dirname($sqlitePath);
+                        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+                        @copy($baseDb, $sqlitePath);
+                    }
                 } else {
                     $sqlitePath = Env::get('DB_SQLITE_PATH', 'database/devday.sqlite');
                     if (!str_starts_with($sqlitePath, '/') && !preg_match('/^[a-zA-Z]:\\\\/', $sqlitePath)) {
